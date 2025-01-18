@@ -55,7 +55,7 @@ export const cacheOptions: CacheOptions = {
 };
 
 export const initAndGetRedisStorage = async (
-  { tls = true }: { tls: boolean } = { tls: true },
+  { tls = false }: { tls: boolean } = { tls: false },
 ): Promise<RedisStorageSingleton> => {
   console.time("redis init");
 
@@ -90,17 +90,17 @@ export const initAndGetProviders = async (storage?: Storage): Promise<Providers>
     cacheOptions: { storage, ...cacheOptions },
     lazyLoading: false,
   });
-  const flowx: FlowxSingleton = await FlowxSingleton.getInstance({
-    cacheOptions: { storage, ...cacheOptions },
-    lazyLoading: false,
-  });
-  const interest: InterestProtocolSingleton = await InterestProtocolSingleton.getInstance({
-    suiProviderUrl,
-    cacheOptions: { storage, ...cacheOptions },
-    lazyLoading: false,
-  });
+  // const flowx: FlowxSingleton = await FlowxSingleton.getInstance({
+  //   cacheOptions: { storage, ...cacheOptions },
+  //   lazyLoading: false,
+  // });
+  // const interest: InterestProtocolSingleton = await InterestProtocolSingleton.getInstance({
+  //   suiProviderUrl,
+  //   cacheOptions: { storage, ...cacheOptions },
+  //   lazyLoading: false,
+  // });
 
-  const providers: Providers = [turbos, cetus, aftermath, flowx, interest];
+  const providers: Providers = [turbos, cetus, aftermath];
 
   return providers;
 };
