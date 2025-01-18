@@ -18,7 +18,7 @@ export const router = async ({
   slippagePercentage: number;
   signerAddress: string;
 }) => {
-  const storage = await initAndGetRedisStorage();
+  const storage = await initAndGetRedisStorage({ tls: false });
 
   console.time("All init");
   const providers = await initAndGetProviders(storage);
@@ -44,7 +44,7 @@ export const router = async ({
 router({
   tokenFrom: SHORT_SUI_COIN_TYPE,
   tokenTo: USDC_COIN_TYPE,
-  amount: "0.1",
+  amount: "0.01",
   slippagePercentage: 10,
   signerAddress: user,
 });
