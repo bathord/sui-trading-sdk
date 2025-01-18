@@ -90,7 +90,13 @@ export function isPoolObjectValid(poolObject: PoolObject): boolean {
 }
 
 export function isPoolCoinsValid(poolCoins: PoolCoins): boolean {
-  return Object.values(poolCoins).every(isPoolCoinValid);
+  const isCoinsValid = Object.values(poolCoins).every(isPoolCoinValid);
+
+  if (!isCoinsValid) {
+    console.debug("[Aftermath] [isPoolCoinsValid] invalid poolCoins: ", JSON.stringify(poolCoins, null, 2));
+  }
+
+  return isCoinsValid;
 }
 
 export function isPoolCoinValid(poolCoin: PoolCoin): boolean {
@@ -103,7 +109,7 @@ export function isPoolCoinValid(poolCoin: PoolCoin): boolean {
     typeof poolCoin.withdrawFee === "bigint" &&
     typeof poolCoin.decimalsScalar === "bigint" &&
     typeof poolCoin.normalizedBalance === "bigint" &&
-    (typeof poolCoin.decimals === "number" || poolCoin.decimals === undefined)
+    (typeof poolCoin.decimals === "number" || poolCoin.decimals === undefined || poolCoin.decimals === null)
   );
 }
 
