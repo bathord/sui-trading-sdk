@@ -65,16 +65,9 @@ export type CoinData = {
   is_stable: boolean;
   is_popular: boolean;
   in_pool: boolean;
-  category_id: number;
   faucet_amount: string;
+  cross_chain: string | null;
   flag: number;
-  created_at: string;
-  updated_at: string;
-  category: {
-    id: number;
-    name: string;
-    badge_url: string;
-  };
 };
 
 export type SwapRequiredData = {

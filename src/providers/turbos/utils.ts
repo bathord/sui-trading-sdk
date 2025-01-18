@@ -95,7 +95,7 @@ export function isCategoryValid(category: { id: number; name: string; badge_url:
 }
 
 export function isCoinDataValid(coinData: CoinData): boolean {
-  return (
+  const isValid =
     typeof coinData.id === "number" &&
     typeof coinData.name === "string" &&
     typeof coinData.type === "string" &&
@@ -108,13 +108,15 @@ export function isCoinDataValid(coinData: CoinData): boolean {
     typeof coinData.is_stable === "boolean" &&
     typeof coinData.is_popular === "boolean" &&
     typeof coinData.in_pool === "boolean" &&
-    typeof coinData.category_id === "number" &&
     typeof coinData.faucet_amount === "string" &&
     typeof coinData.flag === "number" &&
-    typeof coinData.created_at === "string" &&
-    typeof coinData.updated_at === "string" &&
-    isCategoryValid(coinData.category)
-  );
+    (typeof coinData.cross_chain === "string" || coinData.cross_chain === null);
+
+  if (!isValid) {
+    console.debug("[Turbos] Coin data shape is not valid: ", JSON.stringify(coinData, null, 2));
+  }
+
+  return isValid;
 }
 
 export function getPathsMap(pools: ShortPoolData[]): PathsCache {
