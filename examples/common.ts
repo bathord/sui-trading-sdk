@@ -54,12 +54,14 @@ export const cacheOptions: CacheOptions = {
   updateIntervalInMs: 60_000 * 30, // 30 min
 };
 
-export const initAndGetRedisStorage = async (): Promise<RedisStorageSingleton> => {
+export const initAndGetRedisStorage = async (
+  { tls = true }: { tls: boolean } = { tls: true },
+): Promise<RedisStorageSingleton> => {
   console.time("redis init");
 
   const redisClient = createClient({
     url: process.env.REDIS_URL,
-    socket: { tls: true },
+    socket: { tls: tls },
   });
   redisClient.on("error", (error) => {
     console.error("[Redis Client] error event occured:", error);
