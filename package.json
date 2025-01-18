@@ -49,7 +49,7 @@
     }
   },
   "dependencies": {
-    "@cetusprotocol/cetus-sui-clmm-sdk": "^3.17.8",
+    "@cetusprotocol/cetus-sui-clmm-sdk": "3.17.8",
     "@flowx-pkg/ts-sdk": "^0.0.11",
     "@interest-protocol/clamm-sdk": "6.1.1-alpha",
     "@mysten/sui.js": "0.42.0",
