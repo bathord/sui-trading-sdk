@@ -204,7 +204,7 @@ export class AftermathSingleton extends EventEmitter implements IPoolProvider<Af
     const isValidPoolsResponse = isApiResponseValid(pools);
 
     if (!isValidPoolsResponse) {
-      console.error("[Aftermath] Pools response:", pools);
+      console.debug("[Aftermath] Pools shape:", JSON.stringify(pools[0], null, 2));
       throw new Error("Pools response from API is not valid");
     }
 
