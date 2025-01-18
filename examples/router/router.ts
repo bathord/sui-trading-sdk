@@ -18,7 +18,7 @@ export const router = async ({
   slippagePercentage: number;
   signerAddress: string;
 }) => {
-  const storage = await initAndGetRedisStorage({ tls: false });
+  const storage = await initAndGetRedisStorage();
 
   console.time("All init");
   const providers = await initAndGetProviders(storage);
