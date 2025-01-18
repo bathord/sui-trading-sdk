@@ -47,7 +47,9 @@ export const clmmMainnet = {
   swapCountUrl: "https://api-sui.cetus.zone/v2/sui/swap/count",
 };
 
-export const CENTRALIZED_POOLS_INFO_ENDPOINT = "https://api-sui.cetus.zone/v2/sui/pools_info";
+export const CENTRALIZED_POOLS_INFO_ENDPOINT =
+  // eslint-disable-next-line max-len
+  "https://api-sui.cetus.zone/v2/sui/stats_pools?is_vaults=false&display_all_pools=false&has_mining=true&has_farming=true&no_incentives=true&order_by=-vol&limit=1000&offset=0";
 
 export const MIN_FETCH_BEST_ROUTE_TIMEOUT_DURATION = 4_000;
 export const MAX_FETCH_BEST_ROUTE_TIMEOUT_DURATION = 5_500;
