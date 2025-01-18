@@ -290,6 +290,7 @@ export class TurbosSingleton extends EventEmitter implements IPoolProvider<Turbo
     const isValidResponse = isCoinsApiResponseValid(responseJson);
 
     if (!isValidResponse) {
+      console.debug("[Turbos] Coins response shape: ", JSON.stringify(responseJson.data[0], null, 2));
       throw new Error("[Turbos] Coins response from API is not valid.");
     }
 
