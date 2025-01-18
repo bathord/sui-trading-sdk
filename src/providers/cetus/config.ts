@@ -31,8 +31,8 @@ export const clmmMainnet = {
     config: SDKConfig.clmmConfig,
   },
   integrate: {
-    package_id: "0xd43348b8879c1457f882b02555ba862f2bc87bcc31b16294ca14a82f608875d2",
-    published_at: "0xd43348b8879c1457f882b02555ba862f2bc87bcc31b16294ca14a82f608875d2",
+    package_id: "0x996c4d9480708fb8b92aa7acf819fb0497b5ec8e65ba06601cae2fb6db3312c3",
+    published_at: "0x3a5aa90ffa33d09100d7b6941ea1c0ffe6ab66e77062ddd26320c1b073aabb10",
     version: 2,
   },
   deepbook: {
