@@ -1,3 +1,5 @@
+import { PoolsQueryParams } from "./types";
+
 const SDKConfig = {
   clmmConfig: {
     pools_id: "0xf699e7f2276f5c9a75944b37a0c5b5d9ddfd2471bf6242483b03ab2887d198d0",
@@ -47,9 +49,32 @@ export const clmmMainnet = {
   swapCountUrl: "https://api-sui.cetus.zone/v2/sui/swap/count",
 };
 
-export const CENTRALIZED_POOLS_INFO_ENDPOINT =
-  // eslint-disable-next-line max-len
-  "https://api-sui.cetus.zone/v2/sui/stats_pools?is_vaults=false&display_all_pools=false&has_mining=true&has_farming=true&no_incentives=true&order_by=-vol&limit=1000&offset=0";
+export const CETUS_API_BASE_URL = "https://api-sui.cetus.zone";
+export const STATS_POOLS_ENDPOINT = "/v2/sui/stats_pools";
+
+export const DEFAULT_POOLS_PARAMS: Required<PoolsQueryParams> = {
+  is_vaults: false,
+  display_all_pools: false,
+  has_mining: true,
+  has_farming: true,
+  no_incentives: true,
+  order_by: "-vol",
+  limit: 100,
+  offset: 0,
+};
+
+export const getCentralizedPoolsInfoEndpoint = (customParams: PoolsQueryParams = {}): string => {
+  const mergedParams = { ...DEFAULT_POOLS_PARAMS, ...customParams };
+  return `${CETUS_API_BASE_URL}${STATS_POOLS_ENDPOINT}?${new URLSearchParams(
+    Object.entries(mergedParams).reduce(
+      (acc, [key, value]) => ({
+        ...acc,
+        [key]: String(value),
+      }),
+      {},
+    ),
+  ).toString()}`;
+};
 
 export const MIN_FETCH_BEST_ROUTE_TIMEOUT_DURATION = 4_000;
 export const MAX_FETCH_BEST_ROUTE_TIMEOUT_DURATION = 5_500;
