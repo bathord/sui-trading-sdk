@@ -110,3 +110,14 @@ export type CetusPathForStorage = {
   quote: string;
   addressMap: [number, string][];
 };
+
+export interface PoolsQueryParams {
+  is_vaults?: boolean;
+  display_all_pools?: boolean;
+  has_mining?: boolean;
+  has_farming?: boolean;
+  no_incentives?: boolean;
+  order_by?: string;
+  limit?: number;
+  offset?: number;
+}

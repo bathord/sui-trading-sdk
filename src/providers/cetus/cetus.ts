@@ -31,7 +31,7 @@ import { convertSlippage } from "../utils/convertSlippage";
 import { getCoinInfoFromCache } from "../utils/getCoinInfoFromCache";
 import { isSuiCoinType } from "../utils/isSuiCoinType";
 import { removeDecimalPart } from "../utils/removeDecimalPart";
-import { CENTRALIZED_POOLS_INFO_ENDPOINT } from "./config";
+import { getCentralizedPoolsInfoEndpoint } from "./config";
 import { CetusOptions, CetusOwnedPool, CoinMap, CoinNodeWithSymbol, LPList } from "./types";
 import {
   getCoinMapFromCoinsCache,
@@ -283,23 +283,39 @@ export class CetusSingleton extends EventEmitter implements IPoolProvider<CetusS
   /**
    * @private
    * @method retrieveAllPoolsFromApi
-   * @description Retrieves all pools from the API.
-   * @return {Promise<any>} A Promise that resolves to the retrieved pools.
+   * @description Retrieves all pools from the API with pagination support.
+   * @return {Promise<any>} A Promise that resolves to all retrieved pools.
    */
   private async retrieveAllPoolsFromApi() {
-    const url: string = this.proxy
-      ? `${this.proxy}/${CENTRALIZED_POOLS_INFO_ENDPOINT}`
-      : CENTRALIZED_POOLS_INFO_ENDPOINT;
+    // Maximum number of pools that Cetus API returns in a single request
+    const POOLS_PER_PAGE = 100;
+    const allPools: LPList[] = [];
+    let hasMorePools = true;
+    let offset = 0;
 
-    const poolsResponse = await (await fetch(url)).json();
-    const isValidPoolsResponse = isApiResponseValid(poolsResponse);
+    do {
+      const endpoint = getCentralizedPoolsInfoEndpoint({ offset });
+      const url = this.proxy ? `${this.proxy}/${endpoint}` : endpoint;
 
-    if (!isValidPoolsResponse) {
-      console.error("[Cetus] Pools response:", poolsResponse);
-      throw new Error("Pools response from API is not valid");
-    }
+      const poolsResponse = await (await fetch(url)).json();
+      const isValidPoolsResponse = isApiResponseValid(poolsResponse);
 
-    return poolsResponse.data.lp_list;
+      if (!isValidPoolsResponse) {
+        console.error("[Cetus] Pools response:", poolsResponse);
+        throw new Error("Pools response from API is not valid");
+      }
+
+      const pools = poolsResponse.data.lp_list;
+      allPools.push(...pools);
+
+      // Update control variables
+      hasMorePools = pools.length === POOLS_PER_PAGE;
+      offset += POOLS_PER_PAGE;
+    } while (hasMorePools);
+
+    console.log(`[CETUS.retrieveAllPoolsFromApi] allPools: ${allPools.length}`);
+
+    return allPools;
   }
 
   /**
