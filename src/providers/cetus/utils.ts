@@ -19,8 +19,8 @@ export function isApiResponseValid(
     response.msg === "OK" &&
     response.data !== undefined &&
     Array.isArray(response.data.lp_list) &&
-    response.data.lp_list.length > 0 &&
-    response.data.lp_list.every(isLPListValid)
+    ((response.data.lp_list.length > 0 && response.data.lp_list.every(isLPListValid)) ||
+      response.data.lp_list.length === 0)
   );
 }
 
