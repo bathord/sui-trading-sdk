@@ -18,7 +18,7 @@ import { cacheOptions, suiProviderUrl } from "../common";
     suiProviderUrl,
   });
   const aftermath: AftermathSingleton = await AftermathSingleton.getInstance({ cacheOptions });
-  const flowx: FlowxSingleton = await FlowxSingleton.getInstance({ cacheOptions });
+  const flowx: FlowxSingleton = await FlowxSingleton.getInstance({ cacheOptions, suiProviderUrl });
   const providers: Providers = [turbos, cetus, aftermath, flowx];
   const coinManager: CoinManagerSingleton = CoinManagerSingleton.getInstance(providers);
 

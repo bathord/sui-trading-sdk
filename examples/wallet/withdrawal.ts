@@ -17,7 +17,7 @@ export const withdrawal = async () => {
     suiProviderUrl,
   });
   const aftermath: AftermathSingleton = await AftermathSingleton.getInstance({ cacheOptions });
-  const flowx: FlowxSingleton = await FlowxSingleton.getInstance({ cacheOptions });
+  const flowx: FlowxSingleton = await FlowxSingleton.getInstance({ cacheOptions, suiProviderUrl });
   const providers: Providers = [turbos, cetus, aftermath, flowx];
   const coinManager: CoinManagerSingleton = CoinManagerSingleton.getInstance(providers);
   const walletManager: WalletManagerSingleton = WalletManagerSingleton.getInstance(provider, coinManager);

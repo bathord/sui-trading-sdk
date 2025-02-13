@@ -66,6 +66,7 @@ async function createPool({
   const flowx: FlowxSingleton = await FlowxSingleton.getInstance({
     cacheOptions: { storage: redis, ...cacheOptions },
     lazyLoading: false,
+    suiProviderUrl,
   });
   const providers: Providers = [turbos, cetus, aftermath, flowx];
   const coinManager: CoinManagerSingleton = CoinManagerSingleton.getInstance(providers, suiProviderUrl);

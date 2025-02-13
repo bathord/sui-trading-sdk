@@ -40,6 +40,7 @@ async function updateProviderCaches() {
   });
   await FlowxSingleton.getInstance({
     cacheOptions: { storage: redis, updateIntervalInMs: 0, updateIntervally: false },
+    suiProviderUrl,
     lazyLoading: false,
   });
 

@@ -24,7 +24,7 @@ import { convertMyMapTypeToRecord, mapToObject, saveDataToJsonFile } from "../ut
     lazyLoading: false,
   });
   const aftermath: AftermathSingleton = await AftermathSingleton.getInstance({ cacheOptions, lazyLoading: false });
-  const flowx: FlowxSingleton = await FlowxSingleton.getInstance({ cacheOptions, lazyLoading: false });
+  const flowx: FlowxSingleton = await FlowxSingleton.getInstance({ cacheOptions, suiProviderUrl, lazyLoading: false });
   const providers: Providers = [turbos, cetus, aftermath, flowx];
   const coinManager: CoinManagerSingleton = CoinManagerSingleton.getInstance(providers, suiProviderUrl);
 
