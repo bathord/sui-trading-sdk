@@ -1,6 +1,6 @@
 /* eslint-disable require-jsdoc */
 import { TransactionBlock } from "@mysten/sui.js/transactions";
-import { publicKey, cacheOptions } from "../constants";
+import { publicKey, cacheOptions, suiProviderUrl } from "../constants";
 import { FlowxSingleton } from "../../src/providers/flowx/flowx";
 import { getCoinsMap, getPathsMap } from "../../src/providers/flowx/utils";
 import { getPairs } from "@flowx-pkg/ts-sdk";
@@ -16,6 +16,7 @@ describe("FlowxSingleton", () => {
   beforeAll(async () => {
     flowxSingleton = await FlowxSingleton.getInstance({
       lazyLoading: false,
+      suiProviderUrl,
       cacheOptions,
     });
   });

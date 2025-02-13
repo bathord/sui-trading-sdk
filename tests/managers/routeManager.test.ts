@@ -37,7 +37,11 @@ describe("WalletManager", () => {
       lazyLoading: false,
     });
     const aftermath: AftermathSingleton = await AftermathSingleton.getInstance({ cacheOptions, lazyLoading: false });
-    const flowx: FlowxSingleton = await FlowxSingleton.getInstance({ cacheOptions, lazyLoading: false });
+    const flowx: FlowxSingleton = await FlowxSingleton.getInstance({
+      cacheOptions,
+      suiProviderUrl,
+      lazyLoading: false,
+    });
     // providers = [turbos, cetus, aftermath, flowx];
     providers = [turbos, cetus, aftermath];
     coinManager = CoinManagerSingleton.getInstance(providers, suiProviderUrl);

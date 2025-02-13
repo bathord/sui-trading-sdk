@@ -23,7 +23,11 @@ describe("CoinManager & Event Emitter & no lazy loading", () => {
       lazyLoading: false,
     });
     const aftermath: AftermathSingleton = await AftermathSingleton.getInstance({ cacheOptions, lazyLoading: false });
-    const flowx: FlowxSingleton = await FlowxSingleton.getInstance({ cacheOptions, lazyLoading: false });
+    const flowx: FlowxSingleton = await FlowxSingleton.getInstance({
+      cacheOptions,
+      suiProviderUrl,
+      lazyLoading: false,
+    });
     const providers: Providers = [turbos, cetus, aftermath, flowx];
 
     providers.forEach((provider: Provider) => {
