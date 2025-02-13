@@ -1,6 +1,6 @@
-import { ExtractedCoinMetadataType } from "../../providers/flowx/types";
 import { StorageValue, StorageProperty, Storage } from "../types";
 import { isShortCoinMetadataArray } from "./typeguards";
+import { ShortCoinMetadata } from "../../providers/flowx/types";
 
 /**
  * Returns coins metadata cache from storage. If cache is not up to date, empty array is returned.
@@ -13,8 +13,8 @@ export async function getCoinsMetadataCache({
   storage: Storage;
   provider: string;
   updateCacheInterval: number;
-}): Promise<ExtractedCoinMetadataType[]> {
-  let coinsMetadataCache: ExtractedCoinMetadataType[] = [];
+}): Promise<ShortCoinMetadata[]> {
+  let coinsMetadataCache: ShortCoinMetadata[] = [];
 
   const coinsMetadata: StorageValue = await storage.getCache({
     provider: provider,

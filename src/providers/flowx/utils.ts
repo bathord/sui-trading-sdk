@@ -3,14 +3,15 @@
 import { Coin } from "@flowx-finance/sdk";
 import { CoinsCache, CommonPoolData } from "../types";
 import { ExtractedPairSettingsType } from "./types";
+import { CommonCoinData } from "../../managers/types";
 
-export function getCoinsMap({ coinList }: { coinList: Coin[] }) {
+export function getCoinsMap({ coinList }: { coinList: CommonCoinData[] }) {
   const coinMap: CoinsCache = coinList.reduce((acc, el) => {
-    if (el.coinType === undefined || el.decimals === undefined) {
+    if (el.type === undefined || el.decimals === undefined) {
       console.debug("flowx [getPoolsMap] no decimals or type for coin: ", el);
     }
 
-    acc.set(el.coinType, { type: el.coinType, decimals: el.decimals, symbol: el.name });
+    acc.set(el.type, { type: el.type, decimals: el.decimals, symbol: el.symbol });
 
     return acc;
   }, new Map());

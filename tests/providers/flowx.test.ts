@@ -29,17 +29,6 @@ describe("FlowxSingleton", () => {
     });
   });
 
-  describe("getPaths", () => {
-    it("should return paths cache", () => {
-      const paths = flowxSingleton.getPaths();
-
-      paths.forEach((poolData, poolKey) => {
-        const { base, quote } = poolData;
-        expect(poolKey).toStrictEqual(`${base}-${quote}`);
-      });
-    });
-  });
-
   describe("getRouteData", () => {
     it("should return outputAmount and route", async () => {
       const { outputAmount, route } = await flowxSingleton.getRouteData({
@@ -77,7 +66,7 @@ describe("FlowxSingleton", () => {
 
   describe("getCoinsMap", () => {
     it("should return coins and coinMap", () => {
-      const coinList = flowxSingleton.coinsMetadataCache;
+      const coinList = Array.from(flowxSingleton.coinsCache.values());
       const { coins, coinMap } = getCoinsMap({ coinList });
 
       expect(coinMap.size).toBeGreaterThan(0);

@@ -61,7 +61,7 @@ export function isShortCoinMetadataArray(data: unknown): data is ShortCoinMetada
         "decimals" in item &&
         typeof (item as ShortCoinMetadata).decimals === "number" &&
         "type" in item &&
-        typeof (item as ShortCoinMetadata).type === "string",
+        typeof (item as ShortCoinMetadata).coinType === "string",
     )
   );
 }

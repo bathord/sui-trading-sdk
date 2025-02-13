@@ -118,7 +118,7 @@ export const calculateAmountOutInternal = async (
   const decimalInAmount = BigNumberInstance(getDecimalAmount(value, coinIn.decimals)).toFixed(0);
   const amountInFormat = getBalanceAmount(
     decimalInAmount,
-    coins.find((coin) => coin.type === coinIn.type)?.decimals,
+    coins.find((coin) => coin.coinType === coinIn.type)?.decimals,
   ).toFixed();
 
   const amountInNewState: ExtractedAmountType = {
@@ -137,7 +137,7 @@ export const calculateAmountOutInternal = async (
 
   const amountOutFormat = getBalanceAmount(
     decimalOutAmount,
-    coins.find((coin) => coin.type === coinOut.type)?.decimals,
+    coins.find((coin) => coin.coinType === coinOut.type)?.decimals,
   ).toFixed();
 
   const amountOutNewState: ExtractedAmountType = {
