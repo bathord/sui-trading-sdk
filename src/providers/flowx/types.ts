@@ -1,4 +1,4 @@
-import { Coin } from "@flowx-finance/sdk";
+import { Coin, GetRoutesResult } from "@flowx-finance/sdk";
 import { calculateAmountOut, getPoolInfos, getPools } from "@flowx-pkg/ts-sdk";
 import { ProviderOptions } from "../types";
 
@@ -22,5 +22,10 @@ export type CoinNode = { address: string; type: string; decimals: number; symbol
 export type PathMap = Map<string, PathLink>;
 export type CoinMap = Map<string, CoinNode>;
 
-export type FlowxOptions = ProviderOptions;
+export type FlowxOptions = ProviderOptions & { suiProviderUrl: string };
 export type ShortCoinMetadata = Pick<Coin, "coinType" | "decimals">;
+
+export interface FlowXRouteData {
+  outputAmount: bigint;
+  route: GetRoutesResult<Coin, Coin>;
+}
