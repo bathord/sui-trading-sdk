@@ -11,7 +11,7 @@ import { getCoinsAndPathsCaches } from "../../storages/utils/getCoinsAndPathsCac
 import { getCoinsMetadataCache } from "../../storages/utils/getCoinsMetadataCache";
 import { storeCaches } from "../../storages/utils/storeCaches";
 import { exitHandlerWrapper } from "../common";
-import { CacheOptions, CoinsCache, CommonPoolData, IPoolProvider, PathsCache } from "../types";
+import { CacheOptions, CoinsCache, CommonPoolData, IPoolProviderWithSmartRouting, PathsCache } from "../types";
 import { convertSlippage } from "../utils/convertSlippage";
 import { getCoinInfoFromCache } from "../utils/getCoinInfoFromCache";
 import { calculateAmountOutInternal } from "./calculateAmountOutInternal";
@@ -27,7 +27,7 @@ import { getCoinsMap, getPathsMap, isCoinListValid, isPairListValid } from "./ut
 /**
  * @class FlowxSingleton
  * @extends EventEmitter
- * @implements {IPoolProvider<FlowxSingleton>}
+ * @implements {IPoolProviderWithSmartRouting<FlowxSingleton>}
  * @description Singleton class for Flowx.
  *
  * Note: If using `lazyLoading: true` with any storage configuration in a serverless/cloud functions environment,
@@ -36,10 +36,10 @@ import { getCoinsMap, getPathsMap, isCoinListValid, isPairListValid } from "./ut
  * for cache population, consider using `lazyLoading: false` along with passing a persistent
  * storage adapter (external, e.g., Redis or any kind of DB) to the ProviderSingleton.
  */
-export class FlowxSingleton extends EventEmitter implements IPoolProvider<FlowxSingleton> {
+export class FlowxSingleton extends EventEmitter implements IPoolProviderWithSmartRouting<FlowxSingleton> {
   private static _instance: FlowxSingleton | undefined;
   public providerName = "Flowx";
-  public isSmartRoutingAvailable = false;
+  public isSmartRoutingAvailable = true as const;
   public pathsCache: PathsCache = new Map();
   public coinsCache: CoinsCache = new Map();
   public coinsMetadataCache: ShortCoinMetadata[] = [];
