@@ -1,15 +1,16 @@
 /* eslint-disable require-jsdoc */
 
+import { Coin } from "@flowx-finance/sdk";
 import { CoinsCache, CommonPoolData } from "../types";
-import { ExtractedCoinMetadataListType, ExtractedCoinMetadataType, ExtractedPairSettingsType } from "./types";
+import { ExtractedPairSettingsType } from "./types";
 
-export function getCoinsMap({ coinList }: { coinList: ExtractedCoinMetadataListType }) {
+export function getCoinsMap({ coinList }: { coinList: Coin[] }) {
   const coinMap: CoinsCache = coinList.reduce((acc, el) => {
-    if (el.type === undefined || el.decimals === undefined) {
+    if (el.coinType === undefined || el.decimals === undefined) {
       console.debug("flowx [getPoolsMap] no decimals or type for coin: ", el);
     }
 
-    acc.set(el.type, { type: el.type, decimals: el.decimals, symbol: el.name });
+    acc.set(el.coinType, { type: el.coinType, decimals: el.decimals, symbol: el.name });
 
     return acc;
   }, new Map());
@@ -37,14 +38,14 @@ export function getPathsMap(pairs: ExtractedPairSettingsType[]): Map<string, Com
   }, new Map());
 }
 
-export function isCoinListValid(coinList: ExtractedCoinMetadataListType): boolean {
+export function isCoinListValid(coinList: Coin[]): boolean {
   return Array.isArray(coinList) && coinList.every(isCoinMetadataValid);
 }
 
-export function isCoinMetadataValid(coinMetadata: ExtractedCoinMetadataType): boolean {
+export function isCoinMetadataValid(coinMetadata: Coin): boolean {
   return (
     typeof coinMetadata.decimals === "number" &&
-    typeof coinMetadata.type === "string" &&
+    typeof coinMetadata.coinType === "string" &&
     (typeof coinMetadata.symbol === "string" || coinMetadata.symbol === undefined)
   );
 }

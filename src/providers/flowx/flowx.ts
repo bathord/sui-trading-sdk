@@ -1,15 +1,19 @@
-import { getCoinsFlowX, getPairs, swapExactInput } from "@flowx-pkg/ts-sdk";
+import { CoinProvider } from "@flowx-finance/sdk";
+import { getPairs, swapExactInput } from "@flowx-pkg/ts-sdk";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { EventEmitter } from "../../emitters/EventEmitter";
+import { swapExactInputDoctored } from "../../managers/dca/adapterUtils/flowxUtils";
+import { buildDcaTxBlock } from "../../managers/dca/adapters/flowxAdapter";
 import { CommonCoinData, UpdatedCoinsCache } from "../../managers/types";
 import { InMemoryStorageSingleton } from "../../storages/InMemoryStorage";
 import { Storage } from "../../storages/types";
+import { getCoinsAndPathsCaches } from "../../storages/utils/getCoinsAndPathsCaches";
+import { getCoinsMetadataCache } from "../../storages/utils/getCoinsMetadataCache";
+import { storeCaches } from "../../storages/utils/storeCaches";
 import { exitHandlerWrapper } from "../common";
 import { CacheOptions, CoinsCache, CommonPoolData, IPoolProvider, PathsCache } from "../types";
 import { convertSlippage } from "../utils/convertSlippage";
 import { getCoinInfoFromCache } from "../utils/getCoinInfoFromCache";
-import { getCoinsAndPathsCaches } from "../../storages/utils/getCoinsAndPathsCaches";
-import { storeCaches } from "../../storages/utils/storeCaches";
 import { calculateAmountOutInternal } from "./calculateAmountOutInternal";
 import {
   CoinNode,
@@ -19,9 +23,6 @@ import {
   ShortCoinMetadata,
 } from "./types";
 import { getCoinsMap, getPathsMap, isCoinListValid, isPairListValid } from "./utils";
-import { getCoinsMetadataCache } from "../../storages/utils/getCoinsMetadataCache";
-import { swapExactInputDoctored } from "../../managers/dca/adapterUtils/flowxUtils";
-import { buildDcaTxBlock } from "../../managers/dca/adapters/flowxAdapter";
 
 /**
  * @class FlowxSingleton
@@ -42,6 +43,7 @@ export class FlowxSingleton extends EventEmitter implements IPoolProvider<FlowxS
   public pathsCache: PathsCache = new Map();
   public coinsCache: CoinsCache = new Map();
   public coinsMetadataCache: ShortCoinMetadata[] = [];
+  public coinProvider = new CoinProvider("mainnet");
   private cacheOptions: CacheOptions;
   private intervalId: NodeJS.Timeout | undefined;
   private storage: Storage;
@@ -196,17 +198,49 @@ export class FlowxSingleton extends EventEmitter implements IPoolProvider<FlowxS
    * @return {Promise<void>} A Promise that resolves when the coins cache is updated.
    */
   private async updateCoinsCache(): Promise<void> {
-    const coinList = await getCoinsFlowX();
-    const isValidResponse = isCoinListValid(coinList);
+    const COINS_PER_PAGE_LIMIT = 50;
+    const FETCH_VERIFIED_ONLY = true;
+    const allCoins = [];
+    let page = 1;
+    let hasMorePages = true;
 
-    if (!isValidResponse) {
-      console.error("[Flowx] Coins response:", coinList);
-      throw new Error("Coins response from API is not valid");
-    }
+    do {
+      try {
+        const coins = await this.coinProvider.getCoins({
+          limit: COINS_PER_PAGE_LIMIT,
+          page,
+          isVerified: FETCH_VERIFIED_ONLY,
+        });
 
-    const { coinMap } = getCoinsMap({ coinList });
-    // TODO: Remove that .map to separate method
-    this.coinsMetadataCache = coinList.map((coin) => ({ type: coin.type, decimals: coin.decimals }));
+        // Check if we've reached the end
+        if (!coins || coins.length === 0) {
+          hasMorePages = false;
+          continue;
+        }
+
+        // Validate each batch of coins
+        const isValidResponse = isCoinListValid(coins);
+        if (!isValidResponse) {
+          console.error(`[Flowx] Coins response for page ${page}:`, coins);
+          throw new Error("Coins response from API is not valid");
+        }
+
+        allCoins.push(...coins);
+
+        // If we received fewer coins than the limit, we've reached the end
+        if (coins.length < COINS_PER_PAGE_LIMIT) {
+          hasMorePages = false;
+        } else {
+          page++;
+        }
+      } catch (error) {
+        console.error(`[Flowx] Failed to fetch coins for page ${page}:`, error);
+        throw error;
+      }
+    } while (hasMorePages);
+
+    const { coinMap } = getCoinsMap({ coinList: allCoins });
+    this.coinsMetadataCache = allCoins.map(({ coinType, decimals }) => ({ coinType, decimals }));
     this.coinsCache = coinMap;
   }
 
