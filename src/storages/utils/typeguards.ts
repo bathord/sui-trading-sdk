@@ -60,7 +60,7 @@ export function isShortCoinMetadataArray(data: unknown): data is ShortCoinMetada
         item !== null &&
         "decimals" in item &&
         typeof (item as ShortCoinMetadata).decimals === "number" &&
-        "type" in item &&
+        "coinType" in item &&
         typeof (item as ShortCoinMetadata).coinType === "string",
     )
   );
