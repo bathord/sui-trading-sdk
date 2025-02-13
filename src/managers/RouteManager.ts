@@ -1,15 +1,15 @@
 import { CoinStruct } from "@mysten/sui.js/client";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
+import { Transaction } from "@mysten/sui/transactions";
 import BigNumber from "bignumber.js";
 import { NoRoutesError } from "../errors/NoRoutesError";
 import { CetusSingleton } from "../providers/cetus/cetus";
 import { SUI_DENOMINATOR, SWAP_GAS_BUDGET } from "../providers/common";
+import { TryCatchWrapperResult } from "../providers/types";
 import { isSuiCoinType } from "../providers/utils/isSuiCoinType";
 import { CoinManagerSingleton } from "./coin/CoinManager";
 import { BestRouteData, IRouteManager, Provider, Providers, ProvidersToRouteDataMap } from "./types";
 import { getFiltredProviders, getRouterMaps, tokenFromIsTokenTo } from "./utils";
-import { TryCatchWrapperResult } from "../providers/types";
-import { FeeManager } from "./FeeManager";
 
 /**
  * @class RouteManager
@@ -239,7 +239,7 @@ export class RouteManager implements IRouteManager {
       tokenFromCoinObjects?: CoinStruct[];
       tokenFromDecimals?: number;
     };
-  }): Promise<{ tx: TransactionBlock; outputAmount: bigint; providerName: string }> {
+  }): Promise<{ tx: TransactionBlock | Transaction; outputAmount: bigint; providerName: string }> {
     // Note: this works only for sui
     const amountInCludingFees =
       fee && isSuiCoinType(tokenFrom)
@@ -266,6 +266,7 @@ export class RouteManager implements IRouteManager {
     transaction.setGasBudget(SWAP_GAS_BUDGET);
 
     // TODO: Remove that into the FeeManager
+    /*
     if (fee) {
       const { feeAmount, feeCollectorAddress, tokenFromCoinObjects, tokenFromDecimals } = fee;
 
@@ -297,6 +298,7 @@ export class RouteManager implements IRouteManager {
         throw new Error("Unexpected params getBestRouteTransaction");
       }
     }
+    */
 
     return { tx: transaction, outputAmount: maxOutputAmount, providerName: maxOutputProvider.providerName };
   }
