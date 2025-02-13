@@ -313,8 +313,6 @@ export class CetusSingleton extends EventEmitter implements IPoolProviderWithSma
       offset += POOLS_PER_PAGE;
     } while (hasMorePools);
 
-    console.log(`[CETUS.retrieveAllPoolsFromApi] allPools: ${allPools.length}`);
-
     return allPools;
   }
 
