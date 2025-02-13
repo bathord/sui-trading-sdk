@@ -1,5 +1,5 @@
 import { CoinProvider } from "@flowx-finance/sdk";
-import { getPairs, swapExactInput } from "@flowx-pkg/ts-sdk";
+import { swapExactInput } from "@flowx-pkg/ts-sdk";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { EventEmitter } from "../../emitters/EventEmitter";
 import { swapExactInputDoctored } from "../../managers/dca/adapterUtils/flowxUtils";
@@ -7,22 +7,16 @@ import { buildDcaTxBlock } from "../../managers/dca/adapters/flowxAdapter";
 import { CommonCoinData, UpdatedCoinsCache } from "../../managers/types";
 import { InMemoryStorageSingleton } from "../../storages/InMemoryStorage";
 import { Storage } from "../../storages/types";
-import { getCoinsAndPathsCaches } from "../../storages/utils/getCoinsAndPathsCaches";
+import { getCoinsCache } from "../../storages/utils/getCoinsCache";
 import { getCoinsMetadataCache } from "../../storages/utils/getCoinsMetadataCache";
 import { storeCaches } from "../../storages/utils/storeCaches";
 import { exitHandlerWrapper } from "../common";
-import { CacheOptions, CoinsCache, CommonPoolData, IPoolProviderWithSmartRouting, PathsCache } from "../types";
+import { CacheOptions, CoinsCache, IPoolProviderWithSmartRouting } from "../types";
 import { convertSlippage } from "../utils/convertSlippage";
 import { getCoinInfoFromCache } from "../utils/getCoinInfoFromCache";
 import { calculateAmountOutInternal } from "./calculateAmountOutInternal";
-import {
-  CoinNode,
-  ExtendedSwapCalculatedOutputDataType,
-  ExtractedPairSettingsType,
-  FlowxOptions,
-  ShortCoinMetadata,
-} from "./types";
-import { getCoinsMap, getPathsMap, isCoinListValid, isPairListValid } from "./utils";
+import { CoinNode, ExtendedSwapCalculatedOutputDataType, FlowxOptions, ShortCoinMetadata } from "./types";
+import { getCoinsMap, isCoinListValid } from "./utils";
 
 /**
  * @class FlowxSingleton
@@ -40,7 +34,6 @@ export class FlowxSingleton extends EventEmitter implements IPoolProviderWithSma
   private static _instance: FlowxSingleton | undefined;
   public providerName = "Flowx";
   public isSmartRoutingAvailable = true as const;
-  public pathsCache: PathsCache = new Map();
   public coinsCache: CoinsCache = new Map();
   public coinsMetadataCache: ShortCoinMetadata[] = [];
   public coinProvider = new CoinProvider("mainnet");
@@ -106,7 +99,7 @@ export class FlowxSingleton extends EventEmitter implements IPoolProviderWithSma
    */
   private async fillCacheFromStorage(): Promise<void> {
     try {
-      const { coinsCache, pathsCache } = await getCoinsAndPathsCaches({
+      const coinsCache = await getCoinsCache({
         storage: this.storage,
         provider: this.providerName,
         updateCacheInterval: this.cacheOptions.updateIntervalInMs,
@@ -118,7 +111,6 @@ export class FlowxSingleton extends EventEmitter implements IPoolProviderWithSma
       });
 
       this.coinsCache = coinsCache;
-      this.pathsCache = pathsCache;
       this.coinsMetadataCache = coinsMetadataCache;
     } catch (error) {
       console.error(`[${this.providerName}] fillCacheFromStorage failed:`, error);
@@ -132,8 +124,7 @@ export class FlowxSingleton extends EventEmitter implements IPoolProviderWithSma
    * @return {boolean} True if the storage cache is empty, false otherwise.
    */
   private isStorageCacheEmpty() {
-    const isCacheEmpty =
-      this.coinsCache.size === 0 || this.pathsCache.size === 0 || this.coinsMetadataCache.length === 0;
+    const isCacheEmpty = this.coinsCache.size === 0 || this.coinsMetadataCache.length === 0;
 
     return isCacheEmpty;
   }
@@ -149,7 +140,6 @@ export class FlowxSingleton extends EventEmitter implements IPoolProviderWithSma
 
     if (isCacheEmpty || force) {
       try {
-        await this.updatePathsCache();
         await this.updateCoinsCache();
         this.emit("cachesUpdate", this.getCoins());
 
@@ -157,7 +147,6 @@ export class FlowxSingleton extends EventEmitter implements IPoolProviderWithSma
           provider: this.providerName,
           storage: this.storage,
           coinsCache: this.getCoins(),
-          pathsCache: this.getPaths(),
           coinsMetadataCache: this.coinsMetadataCache,
         });
 
@@ -239,27 +228,9 @@ export class FlowxSingleton extends EventEmitter implements IPoolProviderWithSma
       }
     } while (hasMorePages);
 
-    const { coinMap } = getCoinsMap({ coinList: allCoins });
+    const { coinMap } = getCoinsMap({ coinList: allCoins.map((coin) => ({ ...coin, type: coin.coinType })) });
     this.coinsMetadataCache = allCoins.map(({ coinType, decimals }) => ({ coinType, decimals }));
     this.coinsCache = coinMap;
-  }
-
-  /**
-   * @private
-   * @method updatePathsCache
-   * @description Updates the paths cache.
-   * @return {Promise<void>} A Promise that resolves when the paths cache is updated.
-   */
-  private async updatePathsCache(): Promise<void> {
-    const pairs: ExtractedPairSettingsType[] = await getPairs();
-    const isValidResponse = isPairListValid(pairs);
-
-    if (!isValidResponse) {
-      console.error("[Flowx] Pairs response:", pairs);
-      throw new Error("Pairs response from API is not valid");
-    }
-
-    this.pathsCache = getPathsMap(pairs);
   }
 
   /**
@@ -272,16 +243,6 @@ export class FlowxSingleton extends EventEmitter implements IPoolProviderWithSma
     const data = Array.from(this.coinsCache.values());
 
     return { provider: this.providerName, data };
-  }
-
-  /**
-   * @public
-   * @method getPaths
-   * @description Gets the paths cache.
-   * @return {Map<string, CommonPoolData>} Paths cache.
-   */
-  public getPaths(): Map<string, CommonPoolData> {
-    return this.pathsCache;
   }
 
   /**
