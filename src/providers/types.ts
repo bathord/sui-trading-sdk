@@ -3,6 +3,7 @@ import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { CommonCoinData, Provider, UpdatedCoinsCache } from "../managers/types";
 import { Storage } from "../storages/types";
 import { tryCatchWrapper } from "./utils/tryCatchWrapper";
+import { Transaction } from "@mysten/sui/transactions";
 
 export type CommonPoolData = {
   base: string;
@@ -29,7 +30,7 @@ export interface IBasePoolProvider<T extends Provider> {
   isSmartRoutingAvailable: boolean;
   getCoins(): UpdatedCoinsCache;
   getRouteData(arg: GetRouteDataInput<T>): GetRouteDataOutput<T>;
-  getSwapTransaction(arg: GetSwapTransactionInput<T>): Promise<TransactionBlock>;
+  getSwapTransaction(arg: GetSwapTransactionInput<T>): Promise<TransactionBlock | Transaction>;
 }
 
 export interface IPoolProviderWithoutSmartRouting<T extends Provider> extends IBasePoolProvider<T> {
