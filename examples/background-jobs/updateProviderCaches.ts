@@ -9,12 +9,13 @@ import { FlowxSingleton } from "../../src/providers/flowx/flowx";
 import { TurbosSingleton } from "../../src/providers/turbos/turbos";
 import { RedisStorageSingleton } from "../../src/storages/RedisStorage";
 
+// yarn ts-node examples/background-jobs/updateProviderCaches.ts > update-providers-caches.log 2>&1
 async function updateProviderCaches() {
   console.time("Caches are updated for");
   console.time("redis init");
   const redisClient = createClient({
     url: process.env.REDIS_URL,
-    socket: { tls: true },
+    socket: { tls: false },
   });
   redisClient.on("error", (error) => {
     console.error("[Redis Client] error event occured:", error);
@@ -28,23 +29,32 @@ async function updateProviderCaches() {
     cacheOptions: { storage: redis, updateIntervalInMs: 0, updateIntervally: false },
     lazyLoading: false,
   });
+  TurbosSingleton.removeInstance();
+
   await CetusSingleton.getInstance({
     sdkOptions: clmmMainnet,
     cacheOptions: { storage: redis, updateIntervalInMs: 0, updateIntervally: false },
     suiProviderUrl,
     lazyLoading: false,
   });
+  CetusSingleton.removeInstance();
+
   await AftermathSingleton.getInstance({
     cacheOptions: { storage: redis, updateIntervalInMs: 0, updateIntervally: false },
     lazyLoading: false,
   });
+  AftermathSingleton.removeInstance();
+
   await FlowxSingleton.getInstance({
     cacheOptions: { storage: redis, updateIntervalInMs: 0, updateIntervally: false },
     suiProviderUrl,
     lazyLoading: false,
   });
+  FlowxSingleton.removeInstance();
 
   await redisClient.disconnect();
+  RedisStorageSingleton.removeInstance();
+
   console.timeEnd("Caches are updated for");
 }
 
