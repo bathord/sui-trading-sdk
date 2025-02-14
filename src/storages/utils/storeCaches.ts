@@ -1,10 +1,10 @@
 /* eslint-disable require-jsdoc */
 
 import { CommonCoinData, Provider } from "../../managers/types";
-import { Storage, StorageProperty } from "../types";
 import { ShortCoinMetadata } from "../../providers/flowx/types";
 import { ShortPoolData } from "../../providers/turbos/types";
-import { CommonPoolData } from "../../providers/types";
+import { CommonPoolData, IPoolProviderWithoutSmartRouting } from "../../providers/types";
+import { Storage, StorageProperty } from "../types";
 
 export async function storeCaches({
   provider,
@@ -18,7 +18,7 @@ export async function storeCaches({
   storage: Storage;
   coinsCache: ReturnType<Provider["getCoins"]>;
   // TODO: Put it into separate store method to avoid usage from different class
-  pathsCache?: ReturnType<Provider["getPaths"]>;
+  pathsCache?: ReturnType<IPoolProviderWithoutSmartRouting<Provider>["getPaths"]>;
   coinsMetadataCache?: ShortCoinMetadata[];
   poolsCache?: ShortPoolData[];
 }): Promise<void> {

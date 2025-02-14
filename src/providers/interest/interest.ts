@@ -12,7 +12,7 @@ import { Storage } from "../../storages/types";
 import { getCoinsAndPathsCaches } from "../../storages/utils/getCoinsAndPathsCaches";
 import { storeCaches } from "../../storages/utils/storeCaches";
 import { LONG_SUI_COIN_TYPE, exitHandlerWrapper } from "../common";
-import { CacheOptions, CoinsCache, CommonPoolData, IPoolProvider, PathsCache } from "../types";
+import { CacheOptions, CoinsCache, CommonPoolData, IPoolProviderWithSmartRouting, PathsCache } from "../types";
 import { getUserCoinObjects } from "../utils/getUserCoinObjects";
 import { isSuiCoinType } from "../utils/isSuiCoinType";
 import { isApiResponseValid } from "./type-guards";
@@ -22,7 +22,7 @@ import { getAmountWithSlippage, getBestInterestRoute, getPathMapAndCoinTypesSet 
 /**
  * @class InterestProtocolSingleton
  * @extends EventEmitter
- * @implements {IPoolProvider<InterestProtocolSingleton>}
+ * @implements {IPoolProviderWithSmartRouting<InterestProtocolSingleton>}
  * @description Singleton class for Interest Protocol.
  *
  * Note: If using `lazyLoading: true` with any storage configuration in a serverless/cloud functions environment,
@@ -31,7 +31,10 @@ import { getAmountWithSlippage, getBestInterestRoute, getPathMapAndCoinTypesSet 
  * for cache population, consider using `lazyLoading: false` along with passing a persistent
  * storage adapter (external, e.g., Redis or any kind of DB) to the ProviderSingleton.
  */
-export class InterestProtocolSingleton extends EventEmitter implements IPoolProvider<InterestProtocolSingleton> {
+export class InterestProtocolSingleton
+  extends EventEmitter
+  implements IPoolProviderWithSmartRouting<InterestProtocolSingleton>
+{
   private static _instance: InterestProtocolSingleton | undefined;
   public static INTEREST_PROTOCOL_PACKAGE_ADDRESS =
     "0x429dbf2fc849c0b4146db09af38c104ae7a3ed746baf835fa57fee27fa5ff382";
@@ -44,7 +47,7 @@ export class InterestProtocolSingleton extends EventEmitter implements IPoolProv
 
   public interestSdk: CLAMM;
   public providerName = "Interest";
-  public isSmartRoutingAvailable = true;
+  public isSmartRoutingAvailable = true as const;
   public pathsCache: PathsCache = new Map();
   public coinsCache: CoinsCache = new Map();
   public poolsCache: InterestPool[] = [];

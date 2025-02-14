@@ -1,32 +1,27 @@
-import { getCoinsFlowX, getPairs, swapExactInput } from "@flowx-pkg/ts-sdk";
+import { AggregatorQuoter, CoinProvider, TradeBuilder } from "@flowx-finance/sdk";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
+import { SuiClient } from "@mysten/sui/client";
+import BigNumber from "bignumber.js";
 import { EventEmitter } from "../../emitters/EventEmitter";
+import { swapExactInputDoctored } from "../../managers/dca/adapterUtils/flowxUtils";
+import { buildDcaTxBlock } from "../../managers/dca/adapters/flowxAdapter";
 import { CommonCoinData, UpdatedCoinsCache } from "../../managers/types";
 import { InMemoryStorageSingleton } from "../../storages/InMemoryStorage";
 import { Storage } from "../../storages/types";
+import { getCoinsCache } from "../../storages/utils/getCoinsCache";
+import { getCoinsMetadataCache } from "../../storages/utils/getCoinsMetadataCache";
+import { storeCaches } from "../../storages/utils/storeCaches";
 import { exitHandlerWrapper } from "../common";
-import { CacheOptions, CoinsCache, CommonPoolData, IPoolProvider, PathsCache } from "../types";
+import { CacheOptions, CoinsCache, IPoolProviderWithSmartRouting } from "../types";
 import { convertSlippage } from "../utils/convertSlippage";
 import { getCoinInfoFromCache } from "../utils/getCoinInfoFromCache";
-import { getCoinsAndPathsCaches } from "../../storages/utils/getCoinsAndPathsCaches";
-import { storeCaches } from "../../storages/utils/storeCaches";
-import { calculateAmountOutInternal } from "./calculateAmountOutInternal";
-import {
-  CoinNode,
-  ExtendedSwapCalculatedOutputDataType,
-  ExtractedPairSettingsType,
-  FlowxOptions,
-  ShortCoinMetadata,
-} from "./types";
-import { getCoinsMap, getPathsMap, isCoinListValid, isPairListValid } from "./utils";
-import { getCoinsMetadataCache } from "../../storages/utils/getCoinsMetadataCache";
-import { swapExactInputDoctored } from "../../managers/dca/adapterUtils/flowxUtils";
-import { buildDcaTxBlock } from "../../managers/dca/adapters/flowxAdapter";
+import { ExtendedSwapCalculatedOutputDataType, FlowxOptions, FlowXRouteData, ShortCoinMetadata } from "./types";
+import { getCoinsMap, isCoinListValid } from "./utils";
 
 /**
  * @class FlowxSingleton
  * @extends EventEmitter
- * @implements {IPoolProvider<FlowxSingleton>}
+ * @implements {IPoolProviderWithSmartRouting<FlowxSingleton>}
  * @description Singleton class for Flowx.
  *
  * Note: If using `lazyLoading: true` with any storage configuration in a serverless/cloud functions environment,
@@ -35,13 +30,14 @@ import { buildDcaTxBlock } from "../../managers/dca/adapters/flowxAdapter";
  * for cache population, consider using `lazyLoading: false` along with passing a persistent
  * storage adapter (external, e.g., Redis or any kind of DB) to the ProviderSingleton.
  */
-export class FlowxSingleton extends EventEmitter implements IPoolProvider<FlowxSingleton> {
+export class FlowxSingleton extends EventEmitter implements IPoolProviderWithSmartRouting<FlowxSingleton> {
   private static _instance: FlowxSingleton | undefined;
   public providerName = "Flowx";
-  public isSmartRoutingAvailable = false;
-  public pathsCache: PathsCache = new Map();
+  public isSmartRoutingAvailable = true as const;
   public coinsCache: CoinsCache = new Map();
   public coinsMetadataCache: ShortCoinMetadata[] = [];
+  public coinProvider = new CoinProvider("mainnet");
+  private provider: SuiClient;
   private cacheOptions: CacheOptions;
   private intervalId: NodeJS.Timeout | undefined;
   private storage: Storage;
@@ -52,6 +48,7 @@ export class FlowxSingleton extends EventEmitter implements IPoolProvider<FlowxS
    */
   private constructor(options: Omit<FlowxOptions, "lazyLoading">) {
     super();
+    this.provider = new SuiClient({ url: options.suiProviderUrl });
     const { updateIntervally = true, ...restCacheOptions } = options.cacheOptions;
     this.cacheOptions = { updateIntervally, ...restCacheOptions };
     this.storage = options.cacheOptions.storage ?? InMemoryStorageSingleton.getInstance();
@@ -70,9 +67,9 @@ export class FlowxSingleton extends EventEmitter implements IPoolProvider<FlowxS
         throw new Error("[Flowx] Options are required in arguments to create instance.");
       }
 
-      const { cacheOptions, lazyLoading = true } = options;
+      const { cacheOptions, suiProviderUrl, lazyLoading = true } = options;
 
-      const instance = new FlowxSingleton({ cacheOptions });
+      const instance = new FlowxSingleton({ cacheOptions, suiProviderUrl });
       lazyLoading ? instance.init() : await instance.init();
       FlowxSingleton._instance = instance;
     }
@@ -104,7 +101,7 @@ export class FlowxSingleton extends EventEmitter implements IPoolProvider<FlowxS
    */
   private async fillCacheFromStorage(): Promise<void> {
     try {
-      const { coinsCache, pathsCache } = await getCoinsAndPathsCaches({
+      const coinsCache = await getCoinsCache({
         storage: this.storage,
         provider: this.providerName,
         updateCacheInterval: this.cacheOptions.updateIntervalInMs,
@@ -116,7 +113,6 @@ export class FlowxSingleton extends EventEmitter implements IPoolProvider<FlowxS
       });
 
       this.coinsCache = coinsCache;
-      this.pathsCache = pathsCache;
       this.coinsMetadataCache = coinsMetadataCache;
     } catch (error) {
       console.error(`[${this.providerName}] fillCacheFromStorage failed:`, error);
@@ -130,8 +126,7 @@ export class FlowxSingleton extends EventEmitter implements IPoolProvider<FlowxS
    * @return {boolean} True if the storage cache is empty, false otherwise.
    */
   private isStorageCacheEmpty() {
-    const isCacheEmpty =
-      this.coinsCache.size === 0 || this.pathsCache.size === 0 || this.coinsMetadataCache.length === 0;
+    const isCacheEmpty = this.coinsCache.size === 0 || this.coinsMetadataCache.length === 0;
 
     return isCacheEmpty;
   }
@@ -147,7 +142,6 @@ export class FlowxSingleton extends EventEmitter implements IPoolProvider<FlowxS
 
     if (isCacheEmpty || force) {
       try {
-        await this.updatePathsCache();
         await this.updateCoinsCache();
         this.emit("cachesUpdate", this.getCoins());
 
@@ -155,7 +149,6 @@ export class FlowxSingleton extends EventEmitter implements IPoolProvider<FlowxS
           provider: this.providerName,
           storage: this.storage,
           coinsCache: this.getCoins(),
-          pathsCache: this.getPaths(),
           coinsMetadataCache: this.coinsMetadataCache,
         });
 
@@ -196,36 +189,50 @@ export class FlowxSingleton extends EventEmitter implements IPoolProvider<FlowxS
    * @return {Promise<void>} A Promise that resolves when the coins cache is updated.
    */
   private async updateCoinsCache(): Promise<void> {
-    const coinList = await getCoinsFlowX();
-    const isValidResponse = isCoinListValid(coinList);
+    const COINS_PER_PAGE_LIMIT = 50;
+    const FETCH_VERIFIED_ONLY = true;
+    const allCoins = [];
+    let page = 1;
+    let hasMorePages = true;
 
-    if (!isValidResponse) {
-      console.error("[Flowx] Coins response:", coinList);
-      throw new Error("Coins response from API is not valid");
-    }
+    do {
+      try {
+        const coins = await this.coinProvider.getCoins({
+          limit: COINS_PER_PAGE_LIMIT,
+          page,
+          isVerified: FETCH_VERIFIED_ONLY,
+        });
 
-    const { coinMap } = getCoinsMap({ coinList });
-    // TODO: Remove that .map to separate method
-    this.coinsMetadataCache = coinList.map((coin) => ({ type: coin.type, decimals: coin.decimals }));
+        // Check if we've reached the end
+        if (!coins || coins.length === 0) {
+          hasMorePages = false;
+          continue;
+        }
+
+        // Validate each batch of coins
+        const isValidResponse = isCoinListValid(coins);
+        if (!isValidResponse) {
+          console.error(`[Flowx] Coins response for page ${page}:`, coins);
+          throw new Error("Coins response from API is not valid");
+        }
+
+        allCoins.push(...coins);
+
+        // If we received fewer coins than the limit, we've reached the end
+        if (coins.length < COINS_PER_PAGE_LIMIT) {
+          hasMorePages = false;
+        } else {
+          page++;
+        }
+      } catch (error) {
+        console.error(`[Flowx] Failed to fetch coins for page ${page}:`, error);
+        throw error;
+      }
+    } while (hasMorePages);
+
+    const { coinMap } = getCoinsMap({ coinList: allCoins.map((coin) => ({ ...coin, type: coin.coinType })) });
+    this.coinsMetadataCache = allCoins.map(({ coinType, decimals }) => ({ coinType, decimals }));
     this.coinsCache = coinMap;
-  }
-
-  /**
-   * @private
-   * @method updatePathsCache
-   * @description Updates the paths cache.
-   * @return {Promise<void>} A Promise that resolves when the paths cache is updated.
-   */
-  private async updatePathsCache(): Promise<void> {
-    const pairs: ExtractedPairSettingsType[] = await getPairs();
-    const isValidResponse = isPairListValid(pairs);
-
-    if (!isValidResponse) {
-      console.error("[Flowx] Pairs response:", pairs);
-      throw new Error("Pairs response from API is not valid");
-    }
-
-    this.pathsCache = getPathsMap(pairs);
   }
 
   /**
@@ -242,25 +249,13 @@ export class FlowxSingleton extends EventEmitter implements IPoolProvider<FlowxS
 
   /**
    * @public
-   * @method getPaths
-   * @description Gets the paths cache.
-   * @return {Map<string, CommonPoolData>} Paths cache.
-   */
-  public getPaths(): Map<string, CommonPoolData> {
-    return this.pathsCache;
-  }
-
-  /**
-   * @public
    * @method getRouteData
-   * @description Gets route data for a given pair of coins.
+   * @description Gets route data for a given pair of coins using AggregatorQuoter.
    * @param {Object} options - Options for getting route data.
    * @param {string} options.coinTypeFrom - The coin type to swap from.
    * @param {string} options.coinTypeTo - The coin type to swap to.
    * @param {string} options.inputAmount - The input amount for the swap.
-   * @param {number} options.slippagePercentage - The slippage percentage.
-   * @param {string} options.publicKey - The public key for the swap.
-   * @return {Promise<{ outputAmount: bigint, route: ExtendedSwapCalculatedOutputDataType }>} Route data.
+   * @return {Promise<FlowXRouteData>} Route data and output amount.
    */
   public async getRouteData({
     coinTypeFrom,
@@ -272,86 +267,67 @@ export class FlowxSingleton extends EventEmitter implements IPoolProvider<FlowxS
     inputAmount: string;
     slippagePercentage: number;
     publicKey: string;
-  }): Promise<{ outputAmount: bigint; route: ExtendedSwapCalculatedOutputDataType }> {
-    const tokenFromCoinNode: CommonCoinData | undefined = getCoinInfoFromCache(coinTypeFrom, this.coinsCache);
-    const tokenToCoinNode: CommonCoinData | undefined = getCoinInfoFromCache(coinTypeTo, this.coinsCache);
+  }): Promise<FlowXRouteData> {
+    const coinTypeFromInfo: CommonCoinData | undefined = getCoinInfoFromCache(coinTypeFrom, this.coinsCache);
+    const coinTypeToInfo: CommonCoinData | undefined = getCoinInfoFromCache(coinTypeTo, this.coinsCache);
 
-    if (!tokenFromCoinNode) {
+    if (!coinTypeFromInfo) {
       throw new Error(`Coin ${coinTypeFrom} does not exist.`);
     }
 
-    if (!tokenToCoinNode) {
+    if (!coinTypeToInfo) {
       throw new Error(`Coin ${coinTypeTo} does not exist.`);
     }
 
-    const { outputAmount, route } = await this.getSmartOutputAmountData({
-      amountIn: inputAmount,
-      tokenFrom: { address: tokenFromCoinNode.type, ...tokenFromCoinNode },
-      tokenTo: { address: tokenToCoinNode.type, ...tokenToCoinNode },
+    const inputCoinDecimals: number = coinTypeFromInfo.decimals;
+    const inputAmountWithDecimals = new BigNumber(inputAmount).multipliedBy(10 ** inputCoinDecimals).toString();
+
+    const quoter = new AggregatorQuoter("mainnet");
+
+    const routes = await quoter.getRoutes({
+      tokenIn: coinTypeFrom,
+      tokenOut: coinTypeTo,
+      amountIn: inputAmountWithDecimals,
     });
 
-    return { outputAmount, route };
-  }
-
-  /**
-   * @private
-   * @method getSmartOutputAmountData
-   * @description Gets the smart output amount data for a swap.
-   * @param {Object} options - Options for getting smart output amount data.
-   * @param {string} options.amountIn - The input amount for the swap.
-   * @param {CoinNode} options.tokenFrom - The coin node to swap from.
-   * @param {CoinNode} options.tokenTo - The coin node to swap to.
-   * @return {Promise<{ outputAmount: bigint, route: ExtendedSwapCalculatedOutputDataType }>} Smart output amount data.
-   */
-  private async getSmartOutputAmountData({
-    amountIn,
-    tokenFrom,
-    tokenTo,
-  }: {
-    amountIn: string;
-    tokenFrom: CoinNode;
-    tokenTo: CoinNode;
-  }) {
-    const swapData = await calculateAmountOutInternal(amountIn, tokenFrom, tokenTo, this.coinsMetadataCache);
-
-    return { outputAmount: BigInt(swapData.amountOut.decimalAmount), route: { ...swapData, tokenFrom, tokenTo } };
+    return {
+      outputAmount: BigInt(routes.amountOut.toString()),
+      route: routes,
+    };
   }
 
   /**
    * @public
    * @method getSwapTransaction
-   * @description Gets the swap transaction data.
+   * @description Gets the swap transaction data using TradeBuilder.
    * @param {Object} options - Options for getting swap transaction data.
-   * @param {ExtendedSwapCalculatedOutputDataType} options.route - The route for the swap.
+   * @param {Object} options.routes - The routes data from getRouteData.
    * @param {string} options.publicKey - The public key for the swap.
    * @param {number} options.slippagePercentage - The slippage percentage.
-   * @return {Promise<TransactionBlock>} Swap transaction data.
+   * @return {Promise<Transaction>} Swap transaction data.
    */
   public async getSwapTransaction({
     route,
     publicKey,
     slippagePercentage,
   }: {
-    route: ExtendedSwapCalculatedOutputDataType;
+    route: FlowXRouteData["route"];
     publicKey: string;
     slippagePercentage: number;
   }) {
-    const absoluteSlippage = convertSlippage(slippagePercentage);
+    const tradeBuilder = new TradeBuilder("mainnet", route.routes);
+    const flowxSlippage = (slippagePercentage / 100) * 1e6;
 
-    const legacyTxBlock = await swapExactInput(
-      false, // it should be false for now
-      route.amountIn, // amount want to swap
-      route.amountOut, // amount want to receive
-      route.trades, // trades from calculate amount
-      route.tokenFrom, // coin In data
-      route.tokenTo, // coin Out data
-      publicKey,
-      absoluteSlippage, // slippage (0.05%)
-    );
+    const trade = await tradeBuilder
+      .sender(publicKey)
+      .amountIn(route.amountIn)
+      .amountOut(route.amountOut)
+      .slippage(flowxSlippage)
+      .build();
 
-    const txBlock = new TransactionBlock(TransactionBlock.from(legacyTxBlock.serialize()));
+    const tx = await trade.buildTransaction({ client: this.provider });
 
-    return txBlock;
+    return tx;
   }
 
   /**

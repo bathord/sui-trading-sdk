@@ -26,7 +26,7 @@ import { getCoinsCache } from "../../storages/utils/getCoinsCache";
 import { storeCaches } from "../../storages/utils/storeCaches";
 import { storeCetusPathsCache } from "../../storages/utils/storeCetusPathsCache";
 import { LONG_SUI_COIN_TYPE, MAX_BATCH_EVENTS_PER_QUERY_EVENTS_REQUEST, exitHandlerWrapper } from "../common";
-import { CacheOptions, CoinsCache, IPoolProvider } from "../types";
+import { CacheOptions, CoinsCache, IPoolProviderWithSmartRouting } from "../types";
 import { convertSlippage } from "../utils/convertSlippage";
 import { getCoinInfoFromCache } from "../utils/getCoinInfoFromCache";
 import { isSuiCoinType } from "../utils/isSuiCoinType";
@@ -47,7 +47,7 @@ import { fetchBestRoute } from "./forked";
 /**
  * @class CetusSingleton
  * @extends EventEmitter
- * @implements {IPoolProvider<CetusSingleton>}
+ * @implements {IPoolProviderWithSmartRouting<CetusSingleton>}
  * @description Singleton class for Cetus.
  *
  * Note: If using `lazyLoading: true` with any storage configuration in a serverless/cloud functions environment,
@@ -56,10 +56,10 @@ import { fetchBestRoute } from "./forked";
  * for cache population, consider using `lazyLoading: false` along with passing a persistent
  * storage adapter (external, e.g., Redis or any kind of DB) to the ProviderSingleton.
  */
-export class CetusSingleton extends EventEmitter implements IPoolProvider<CetusSingleton> {
+export class CetusSingleton extends EventEmitter implements IPoolProviderWithSmartRouting<CetusSingleton> {
   private static _instance: CetusSingleton | undefined;
   public providerName = "Cetus";
-  public isSmartRoutingAvailable = true;
+  public isSmartRoutingAvailable = true as const;
   public cetusSdk: CetusClmmSDK;
 
   public poolsCache: LPList[] = [];
@@ -312,8 +312,6 @@ export class CetusSingleton extends EventEmitter implements IPoolProvider<CetusS
       hasMorePools = pools.length === POOLS_PER_PAGE;
       offset += POOLS_PER_PAGE;
     } while (hasMorePools);
-
-    console.log(`[CETUS.retrieveAllPoolsFromApi] allPools: ${allPools.length}`);
 
     return allPools;
   }

@@ -38,6 +38,7 @@ export const flowx = async ({
 
   const flowx: FlowxSingleton = await FlowxSingleton.getInstance({
     cacheOptions: { storage, ...cacheOptions },
+    suiProviderUrl,
     lazyLoading: false,
   });
 
@@ -67,6 +68,7 @@ export const flowx = async ({
   // Standard behaviour of `flowx.getSwapTransaction` is that it will fail if
   // the user does not have coins available for the trade. We therefore use a
   // doctored up version of the method that mock the coin objects
+  /*
   const txBlock = await flowx.getSwapTransactionDoctored({
     publicKey: user, // this MUST be the user address, not the delegatee
     slippagePercentage,
@@ -88,6 +90,7 @@ export const flowx = async ({
 
   // const res = await signAndExecuteTransaction(txBlockDca, delegateeKeypair);
   console.debug("res: ", res);
+  */
 };
 
 // SUI --> FUD

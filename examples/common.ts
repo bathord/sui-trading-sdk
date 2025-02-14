@@ -3,6 +3,8 @@ import "dotenv/config";
 import { ExecuteTransactionBlockParams, SuiClient, SuiTransactionBlockResponse } from "@mysten/sui.js/client";
 import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
+import { SuiClient as NewSuiClient } from "@mysten/sui/client";
+import { Ed25519Keypair as NewEd25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { createClient } from "redis";
 import { Providers } from "../src/managers/types";
 import { normalizeMnemonic } from "../src/managers/utils";
@@ -11,7 +13,6 @@ import { CetusSingleton } from "../src/providers/cetus/cetus";
 import { clmmMainnet } from "../src/providers/cetus/config";
 import { SWAP_GAS_BUDGET } from "../src/providers/common";
 import { FlowxSingleton } from "../src/providers/flowx/flowx";
-import { InterestProtocolSingleton } from "../src/providers/interest/interest";
 import { TurbosSingleton } from "../src/providers/turbos/turbos";
 import { CacheOptions } from "../src/providers/types";
 import { RedisStorageSingleton } from "../src/storages/RedisStorage";
@@ -27,10 +28,13 @@ export const mnemonic = normalizeMnemonic(process.env.SUI_WALLET_SEED_PHRASE ?? 
 export const keypair = process.env.SUI_WALLET_PRIVATE_KEY_ARRAY
   ? Ed25519Keypair.fromSecretKey(hexStringToUint8Array(process.env.SUI_WALLET_PRIVATE_KEY_ARRAY))
   : Ed25519Keypair.deriveKeypair(mnemonic);
+export const newKeypair = process.env.SUI_WALLET_PRIVATE_KEY_ARRAY
+  ? NewEd25519Keypair.fromSecretKey(hexStringToUint8Array(process.env.SUI_WALLET_PRIVATE_KEY_ARRAY))
+  : NewEd25519Keypair.deriveKeypair(mnemonic);
 
 export const suiProviderUrl = "https://sui-rpc.publicnode.com";
 export const provider = new SuiClient({ url: suiProviderUrl });
-
+export const newProvider = new NewSuiClient({ url: suiProviderUrl });
 export const user = keypair.getPublicKey().toSuiAddress();
 
 export const signAndExecuteTransaction = async (
@@ -90,17 +94,18 @@ export const initAndGetProviders = async (storage?: Storage): Promise<Providers>
     cacheOptions: { storage, ...cacheOptions },
     lazyLoading: false,
   });
-  // const flowx: FlowxSingleton = await FlowxSingleton.getInstance({
-  //   cacheOptions: { storage, ...cacheOptions },
-  //   lazyLoading: false,
-  // });
+  const flowx: FlowxSingleton = await FlowxSingleton.getInstance({
+    cacheOptions: { storage, ...cacheOptions },
+    lazyLoading: false,
+    suiProviderUrl,
+  });
   // const interest: InterestProtocolSingleton = await InterestProtocolSingleton.getInstance({
   //   suiProviderUrl,
   //   cacheOptions: { storage, ...cacheOptions },
   //   lazyLoading: false,
   // });
 
-  const providers: Providers = [turbos, cetus, aftermath];
+  const providers: Providers = [turbos, cetus, aftermath, flowx];
 
   return providers;
 };

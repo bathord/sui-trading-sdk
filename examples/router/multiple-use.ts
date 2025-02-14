@@ -43,8 +43,8 @@ export const router = async ({
     });
     console.timeEnd("getBestRouteTransaction");
 
-    const res = await provider.devInspectTransactionBlock({ sender: user, transactionBlock: trx });
-    console.debug("res:", res);
+    // const res = await provider.devInspectTransactionBlock({ sender: user, transactionBlock: trx });
+    // console.debug("res:", res);
 
     isUpdatingCurrently = false;
   }, 5_000); // 5 sec

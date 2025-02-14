@@ -50,8 +50,10 @@
   },
   "dependencies": {
     "@cetusprotocol/cetus-sui-clmm-sdk": "3.17.8",
+    "@flowx-finance/sdk": "^1.9.13",
     "@flowx-pkg/ts-sdk": "^0.0.11",
     "@interest-protocol/clamm-sdk": "6.1.1-alpha",
+    "@mysten/sui": "^1.21.2",
     "@mysten/sui.js": "0.42.0",
     "@mysten/sui.js-0.51.2": "npm:@mysten/sui.js@^0.51.2",
     "@types/redis": "^4.0.11",

@@ -1,6 +1,6 @@
 /* eslint-disable require-jsdoc */
 import { TransactionBlock } from "@mysten/sui.js/transactions";
-import { publicKey, cacheOptions } from "../constants";
+import { publicKey, cacheOptions, suiProviderUrl } from "../constants";
 import { FlowxSingleton } from "../../src/providers/flowx/flowx";
 import { getCoinsMap, getPathsMap } from "../../src/providers/flowx/utils";
 import { getPairs } from "@flowx-pkg/ts-sdk";
@@ -16,6 +16,7 @@ describe("FlowxSingleton", () => {
   beforeAll(async () => {
     flowxSingleton = await FlowxSingleton.getInstance({
       lazyLoading: false,
+      suiProviderUrl,
       cacheOptions,
     });
   });
@@ -26,17 +27,6 @@ describe("FlowxSingleton", () => {
 
       expect(coins.provider).toBe("Flowx");
       expect(coins.data.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe("getPaths", () => {
-    it("should return paths cache", () => {
-      const paths = flowxSingleton.getPaths();
-
-      paths.forEach((poolData, poolKey) => {
-        const { base, quote } = poolData;
-        expect(poolKey).toStrictEqual(`${base}-${quote}`);
-      });
     });
   });
 
@@ -77,7 +67,7 @@ describe("FlowxSingleton", () => {
 
   describe("getCoinsMap", () => {
     it("should return coins and coinMap", () => {
-      const coinList = flowxSingleton.coinsMetadataCache;
+      const coinList = Array.from(flowxSingleton.coinsCache.values());
       const { coins, coinMap } = getCoinsMap({ coinList });
 
       expect(coinMap.size).toBeGreaterThan(0);

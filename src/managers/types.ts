@@ -1,4 +1,5 @@
 import { TransactionBlock } from "@mysten/sui.js/transactions";
+import { Transaction } from "@mysten/sui/transactions";
 import { AftermathSingleton } from "../providers/aftermath/aftermath";
 import { CetusSingleton } from "../providers/cetus/cetus";
 import { FlowxSingleton } from "../providers/flowx/flowx";
@@ -66,7 +67,7 @@ export interface IRouteManager {
     amount: string;
     slippagePercentage: number;
     signerAddress: string;
-  }): Promise<{ tx: TransactionBlock; outputAmount: bigint; providerName: string }>;
+  }): Promise<{ tx: TransactionBlock | Transaction; outputAmount: bigint; providerName: string }>;
 }
 
 export type CreateCoinTransactionParams = {

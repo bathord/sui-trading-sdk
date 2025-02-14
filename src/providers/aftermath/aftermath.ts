@@ -11,7 +11,7 @@ import { Storage } from "../../storages/types";
 import { getCoinsAndPathsCaches } from "../../storages/utils/getCoinsAndPathsCaches";
 import { storeCaches } from "../../storages/utils/storeCaches";
 import { exitHandlerWrapper } from "../common";
-import { CacheOptions, CoinsCache, CommonPoolData, IPoolProvider, PathsCache } from "../types";
+import { CacheOptions, CoinsCache, CommonPoolData, IPoolProviderWithSmartRouting, PathsCache } from "../types";
 import { convertSlippage } from "../utils/convertSlippage";
 import { getCoinInfoFromCache } from "../utils/getCoinInfoFromCache";
 import { removeDecimalPart } from "../utils/removeDecimalPart";
@@ -34,7 +34,7 @@ import {
 /**
  * @class AftermathSingleton
  * @extends EventEmitter
- * @implements {IPoolProvider<AftermathSingleton>}
+ * @implements {IPoolProviderWithSmartRouting<AftermathSingleton>}
  * @description Singleton class for Aftermath.
  *
  * Note: If using `lazyLoading: true` with any storage configuration in a serverless/cloud functions environment,
@@ -43,10 +43,10 @@ import {
  * for cache population, consider using `lazyLoading: false` along with passing a persistent
  * storage adapter (external, e.g., Redis or any kind of DB) to the ProviderSingleton.
  */
-export class AftermathSingleton extends EventEmitter implements IPoolProvider<AftermathSingleton> {
+export class AftermathSingleton extends EventEmitter implements IPoolProviderWithSmartRouting<AftermathSingleton> {
   private static _instance: AftermathSingleton | undefined;
   public static AFTERMATH_POOL_URL = "https://aftermath.finance/pools";
-  public isSmartRoutingAvailable = true;
+  public isSmartRoutingAvailable = true as const;
   public providerName = "Aftermath";
   public aftermathSdk: Aftermath;
   public poolsCache: Pool[] = [];

@@ -13,7 +13,7 @@ import { getCoinsAndPathsCaches } from "../../storages/utils/getCoinsAndPathsCac
 import { getPoolsCache } from "../../storages/utils/getPoolsCache";
 import { storeCaches } from "../../storages/utils/storeCaches";
 import { LONG_SUI_COIN_TYPE, SHORT_SUI_COIN_TYPE, exitHandlerWrapper, getAllUserEvents } from "../common";
-import { CacheOptions, CoinsCache, CommonPoolData, IPoolProvider, PathsCache } from "../types";
+import { CacheOptions, CoinsCache, CommonPoolData, IPoolProviderWithoutSmartRouting, PathsCache } from "../types";
 import { convertSlippage } from "../utils/convertSlippage";
 import { getCoinInfoFromCache } from "../utils/getCoinInfoFromCache";
 import { removeDecimalPart } from "../utils/removeDecimalPart";
@@ -42,7 +42,7 @@ import {
 /**
  * @class TurbosSingleton
  * @extends EventEmitter
- * @implements {IPoolProvider<TurbosSingleton>}
+ * @implements {IPoolProviderWithoutSmartRouting<TurbosSingleton>}
  * @description Represents a singleton instance of TurbosManager managing TurbosSdk functionality.
  *
  * Note: If using `lazyLoading: true` with any storage configuration in a serverless/cloud functions environment,
@@ -51,11 +51,11 @@ import {
  * for cache population, consider using `lazyLoading: false` along with passing a persistent
  * storage adapter (external, e.g., Redis or any kind of DB) to the ProviderSingleton.
  */
-export class TurbosSingleton extends EventEmitter implements IPoolProvider<TurbosSingleton> {
+export class TurbosSingleton extends EventEmitter implements IPoolProviderWithoutSmartRouting<TurbosSingleton> {
   private static _instance: TurbosSingleton | undefined;
   private static TURBOS_API_URL = "https://api.turbos.finance";
   public turbosSdk: TurbosSdk;
-  public isSmartRoutingAvailable = false;
+  public isSmartRoutingAvailable = false as const;
   public providerName = "Turbos";
   public poolsCache: ShortPoolData[] = [];
   public pathsCache: PathsCache = new Map();
