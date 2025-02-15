@@ -1,7 +1,8 @@
 /* eslint-disable new-cap */
 import { SuiTransactionBlockResponse } from "@mysten/sui.js/client";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
-import { Aftermath, CoinMetadaWithInfo, Pool, RouterCompleteTradeRoute } from "aftermath-ts-sdk";
+import { Transaction } from "@mysten/sui/transactions";
+import { Aftermath, Pool, RouterCompleteTradeRoute } from "aftermath-ts-sdk";
 import BigNumber from "bignumber.js";
 import { EventEmitter } from "../../emitters/EventEmitter";
 import { CoinManagerSingleton } from "../../managers/coin/CoinManager";
@@ -63,8 +64,8 @@ export class AftermathSingleton extends EventEmitter implements IPoolProviderWit
   private constructor(options: Omit<AftermathOptions, "lazyLoading">) {
     super();
     this.aftermathSdk = new Aftermath("MAINNET");
-    const { updateIntervally = true, ...restCacheOptions } = options.cacheOptions;
-    this.cacheOptions = { updateIntervally, ...restCacheOptions };
+    const { updateIntervally = true, forceInitialUpdate = false, ...restCacheOptions } = options.cacheOptions;
+    this.cacheOptions = { updateIntervally, forceInitialUpdate, ...restCacheOptions };
     this.storage = options.cacheOptions.storage ?? InMemoryStorageSingleton.getInstance();
   }
 
@@ -85,7 +86,9 @@ export class AftermathSingleton extends EventEmitter implements IPoolProviderWit
       const { cacheOptions, lazyLoading = true } = options;
 
       const instance = new AftermathSingleton({ cacheOptions });
+      console.time("AftermathSingleton init");
       lazyLoading ? instance.init() : await instance.init();
+      console.timeEnd("AftermathSingleton init");
       AftermathSingleton._instance = instance;
     }
 
@@ -101,7 +104,7 @@ export class AftermathSingleton extends EventEmitter implements IPoolProviderWit
   private async init() {
     console.debug(`[${this.providerName}] Singleton initiating.`);
     await this.fillCacheFromStorage();
-    await this.updateCaches();
+    await this.updateCaches({ force: this.cacheOptions.forceInitialUpdate ?? false });
     this.cacheOptions.updateIntervally && this.updateCachesIntervally();
 
     this.bufferEvent("cachesUpdate", this.getCoins());
@@ -221,22 +224,30 @@ export class AftermathSingleton extends EventEmitter implements IPoolProviderWit
     const { pathMap, coinTypesSet } = getPathMapAndCoinTypesSet(this.poolsCache);
     this.pathsCache = pathMap;
 
-    await Promise.all(
-      Array.from(coinTypesSet.values()).map(async (coinType: string) => {
-        try {
-          const coin = this.aftermathSdk.Coin();
-          const metadata: CoinMetadaWithInfo = await coin.getCoinMetadata(coinType);
+    // Find coin types that aren't in cache yet
+    const missingCoinTypes = Array.from(coinTypesSet.values()).filter((coinType) => !this.coinsCache.has(coinType));
 
-          const isValidCoinMetadataResponse = isCoinMetadaWithInfoApiResponseValid(metadata);
+    if (missingCoinTypes.length === 0) {
+      return;
+    }
 
-          if (isValidCoinMetadataResponse) {
-            this.coinsCache.set(coinType, { symbol: metadata.symbol, type: coinType, decimals: metadata.decimals });
-          }
-        } catch (error) {
-          console.error(`[Aftermath] Error while fetching metadata about coin ${coinType}:`, error);
+    try {
+      const coin = this.aftermathSdk.Coin();
+      const metadatas = await coin.getCoinMetadatas({ coins: missingCoinTypes });
+
+      metadatas.forEach((metadata, i) => {
+        if (isCoinMetadaWithInfoApiResponseValid(metadata)) {
+          const coinType = missingCoinTypes[i];
+          this.coinsCache.set(coinType, {
+            symbol: metadata.symbol,
+            type: coinType,
+            decimals: metadata.decimals,
+          });
         }
-      }),
-    );
+      });
+    } catch (error) {
+      console.error("[Aftermath] Error while fetching metadata for coins:", error);
+    }
   }
 
   /**
@@ -403,7 +414,7 @@ export class AftermathSingleton extends EventEmitter implements IPoolProviderWit
     route: RouterCompleteTradeRoute;
     publicKey: string;
     slippagePercentage: number;
-  }): Promise<TransactionBlock> {
+  }): Promise<Transaction> {
     const absoluteSlippage: number = convertSlippage(slippagePercentage);
 
     const routerInstance = this.aftermathSdk.Router();
@@ -413,9 +424,7 @@ export class AftermathSingleton extends EventEmitter implements IPoolProviderWit
       slippage: absoluteSlippage,
     });
 
-    const txBlock = new TransactionBlock(TransactionBlock.from(modernTxBlock.serialize()));
-
-    return txBlock;
+    return modernTxBlock;
   }
 
   /**
@@ -658,7 +667,8 @@ export class AftermathSingleton extends EventEmitter implements IPoolProviderWit
     const poolObjectIdsRaw = await Promise.all(
       lpCoins.map((lpCoin) => poolsSdk.getPoolObjectIdForLpCoinType({ lpCoinType: lpCoin.type })),
     );
-    const poolObjectIds: string[] = poolObjectIdsRaw.filter((el): el is string => !!el);
+    // TODO: After Aftermath SDK update I had to add flat() to get the correct type. It may not work now, need to check.
+    const poolObjectIds: string[] = poolObjectIdsRaw.flat().filter((el): el is string => !!el);
     const pools: Pool[] = await poolsSdk.getPools({ objectIds: poolObjectIds });
     await Promise.all(pools.map((pool) => pool.getStats()));
 

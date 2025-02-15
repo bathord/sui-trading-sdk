@@ -15,9 +15,11 @@ import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { normalizeSuiAddress } from "@mysten/sui.js/utils";
 import BigNumber from "bignumber.js";
 import BN from "bn.js";
+import { request } from "undici";
 import { EventEmitter } from "../../emitters/EventEmitter";
 import { NoRoutesError } from "../../errors/NoRoutesError";
 import { CoinManagerSingleton } from "../../managers/coin/CoinManager";
+import { buildDcaTxBlock } from "../../managers/dca/adapters/cetusAdapter";
 import { CommonCoinData, ProvidersToRouteDataMap, UpdatedCoinsCache } from "../../managers/types";
 import { InMemoryStorageSingleton } from "../../storages/InMemoryStorage";
 import { Storage } from "../../storages/types";
@@ -32,6 +34,7 @@ import { getCoinInfoFromCache } from "../utils/getCoinInfoFromCache";
 import { isSuiCoinType } from "../utils/isSuiCoinType";
 import { removeDecimalPart } from "../utils/removeDecimalPart";
 import { getCentralizedPoolsInfoEndpoint } from "./config";
+import { fetchBestRoute } from "./forked";
 import { CetusOptions, CetusOwnedPool, CoinMap, CoinNodeWithSymbol, LPList } from "./types";
 import {
   getCoinMapFromCoinsCache,
@@ -41,9 +44,9 @@ import {
   isApiResponseValid,
   isCetusCreatePoolEventParsedJson,
 } from "./utils";
-import { buildDcaTxBlock } from "../../managers/dca/adapters/cetusAdapter";
-import { fetchBestRoute } from "./forked";
 
+// TODO: We can store the pages count in the storage and use it to fetch all the pages in one Promise.all
+// TODO: Generally, we can store pages info to improve the performance of the fetchPoolsFromApi
 /**
  * @class CetusSingleton
  * @extends EventEmitter
@@ -87,8 +90,8 @@ export class CetusSingleton extends EventEmitter implements IPoolProviderWithSma
     };
     this.cetusSdk = new CetusClmmSDK(this.cetusSDKConfig);
 
-    const { updateIntervally = true, ...restCacheOptions } = options.cacheOptions;
-    this.cacheOptions = { updateIntervally, ...restCacheOptions };
+    const { updateIntervally = true, initCacheFromStorage = true, ...restCacheOptions } = options.cacheOptions;
+    this.cacheOptions = { updateIntervally, initCacheFromStorage, ...restCacheOptions };
     this.proxy = options.proxy;
     this.storage = options.cacheOptions.storage ?? InMemoryStorageSingleton.getInstance();
   }
@@ -109,7 +112,9 @@ export class CetusSingleton extends EventEmitter implements IPoolProviderWithSma
       const { sdkOptions, cacheOptions, lazyLoading = true, suiProviderUrl, proxy, simulationAccount } = options;
 
       const instance = new CetusSingleton({ sdkOptions, cacheOptions, suiProviderUrl, proxy, simulationAccount });
+      console.time("CetusSingleton init");
       lazyLoading ? instance.init() : await instance.init();
+      console.timeEnd("CetusSingleton init");
       CetusSingleton._instance = instance;
     }
 
@@ -125,7 +130,7 @@ export class CetusSingleton extends EventEmitter implements IPoolProviderWithSma
   private async init() {
     console.debug(`[${this.providerName}] Singleton initiating.`);
 
-    await this.fillCacheFromStorage();
+    this.cacheOptions.initCacheFromStorage && (await this.fillCacheFromStorage());
     await this.updateCaches();
     this.cacheOptions.updateIntervally && this.updateCachesIntervally();
 
@@ -289,29 +294,45 @@ export class CetusSingleton extends EventEmitter implements IPoolProviderWithSma
   private async retrieveAllPoolsFromApi() {
     // Maximum number of pools that Cetus API returns in a single request
     const POOLS_PER_PAGE = 100;
-    const allPools: LPList[] = [];
-    let hasMorePools = true;
-    let offset = 0;
 
-    do {
-      const endpoint = getCentralizedPoolsInfoEndpoint({ offset });
-      const url = this.proxy ? `${this.proxy}/${endpoint}` : endpoint;
+    // Get first page and total count
+    const endpoint = getCentralizedPoolsInfoEndpoint({ offset: 0 });
+    const url = this.proxy ? `${this.proxy}/${endpoint}` : endpoint;
 
-      const poolsResponse = await (await fetch(url)).json();
-      const isValidPoolsResponse = isApiResponseValid(poolsResponse);
+    const { body } = await request(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    const firstPageResponse = await body.json();
 
-      if (!isValidPoolsResponse) {
-        console.error("[Cetus] Pools response:", poolsResponse);
+    if (!isApiResponseValid(firstPageResponse)) {
+      console.error("[Cetus] Pools response:", firstPageResponse);
+      throw new Error("Pools response from API is not valid");
+    }
+
+    const totalPools = firstPageResponse.data.total;
+    const totalPages = Math.ceil(totalPools / POOLS_PER_PAGE);
+    const firstPagePools = firstPageResponse.data.lp_list;
+
+    // Skip first page as we already have it
+    const remainingPagePromises = Array.from({ length: totalPages - 1 }, (_, i) => {
+      const offset = (i + 1) * POOLS_PER_PAGE;
+      const pageEndpoint = getCentralizedPoolsInfoEndpoint({ offset });
+      const pageUrl = this.proxy ? `${this.proxy}/${pageEndpoint}` : pageEndpoint;
+
+      return request(pageUrl, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      }).then((res) => res.body.json());
+    });
+
+    const responses = await Promise.all(remainingPagePromises);
+    const allPools = responses.reduce<LPList[]>((acc, response) => {
+      if (!isApiResponseValid(response)) {
         throw new Error("Pools response from API is not valid");
       }
-
-      const pools = poolsResponse.data.lp_list;
-      allPools.push(...pools);
-
-      // Update control variables
-      hasMorePools = pools.length === POOLS_PER_PAGE;
-      offset += POOLS_PER_PAGE;
-    } while (hasMorePools);
+      return [...acc, ...response.data.lp_list];
+    }, firstPagePools);
 
     return allPools;
   }

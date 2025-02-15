@@ -1,23 +1,24 @@
 import { CoinAsset, CoinNode, PathLink } from "@cetusprotocol/cetus-sui-clmm-sdk";
 import { CoinsCache, PathsCache } from "../types";
-import {
-  APIResponse,
-  CetusCreatePoolEventParsedJson,
-  CoinInfo,
-  CoinMap,
-  CoinNodeWithSymbol,
-  LPList,
-  PathMap,
-} from "./types";
+import { CetusCreatePoolEventParsedJson, CoinInfo, CoinMap, CoinNodeWithSymbol, LPList, PathMap } from "./types";
 
 /* eslint-disable require-jsdoc */
 export function isApiResponseValid(
-  response: APIResponse,
-): response is { code: 200; msg: "OK"; data: { lp_list: LPList[] } } {
+  response: unknown,
+): response is { code: 200; msg: "OK"; data: { total: number; lp_list: LPList[] } } {
   return (
+    typeof response === "object" &&
+    response !== null &&
+    "code" in response &&
+    "msg" in response &&
+    "data" in response &&
     response.code === 200 &&
     response.msg === "OK" &&
-    response.data !== undefined &&
+    response.data !== null &&
+    typeof response.data === "object" &&
+    "lp_list" in response.data &&
+    "total" in response.data &&
+    typeof response.data.total === "number" &&
     Array.isArray(response.data.lp_list) &&
     ((response.data.lp_list.length > 0 && response.data.lp_list.every(isLPListValid)) ||
       response.data.lp_list.length === 0)

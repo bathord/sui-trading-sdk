@@ -1,17 +1,18 @@
 /* eslint-disable require-jsdoc */
 
 import { createClient } from "redis";
-import { suiProviderUrl } from "../common";
 import { AftermathSingleton } from "../../src/providers/aftermath/aftermath";
 import { CetusSingleton } from "../../src/providers/cetus/cetus";
 import { clmmMainnet } from "../../src/providers/cetus/config";
 import { FlowxSingleton } from "../../src/providers/flowx/flowx";
 import { TurbosSingleton } from "../../src/providers/turbos/turbos";
 import { RedisStorageSingleton } from "../../src/storages/RedisStorage";
+import { cacheOptions, suiProviderUrl } from "../common";
 
-// yarn ts-node examples/background-jobs/updateProviderCaches.ts > update-providers-caches.log 2>&1
+// yarn ts-node examples/background-jobs/updateProviderCaches.ts > cache.log 2>&1
 async function updateProviderCaches() {
   console.time("Caches are updated for");
+
   console.time("redis init");
   const redisClient = createClient({
     url: process.env.REDIS_URL,
@@ -24,32 +25,37 @@ async function updateProviderCaches() {
   const redis = RedisStorageSingleton.getInstance(redisClient);
   console.timeEnd("redis init");
 
-  await TurbosSingleton.getInstance({
-    suiProviderUrl,
-    cacheOptions: { storage: redis, updateIntervalInMs: 0, updateIntervally: false },
-    lazyLoading: false,
-  });
+  console.time("All Singletons initiating");
+  await Promise.all([
+    TurbosSingleton.getInstance({
+      suiProviderUrl,
+      cacheOptions: { storage: redis, updateIntervalInMs: 0, updateIntervally: false, initCacheFromStorage: false },
+      lazyLoading: false,
+    }),
+
+    CetusSingleton.getInstance({
+      sdkOptions: clmmMainnet,
+      cacheOptions: { storage: redis, updateIntervalInMs: 0, updateIntervally: false, initCacheFromStorage: false },
+      suiProviderUrl,
+      lazyLoading: false,
+    }),
+
+    AftermathSingleton.getInstance({
+      cacheOptions: { storage: redis, updateIntervally: false, forceInitialUpdate: true, ...cacheOptions },
+      lazyLoading: false,
+    }),
+
+    FlowxSingleton.getInstance({
+      cacheOptions: { storage: redis, updateIntervalInMs: 0, updateIntervally: false },
+      suiProviderUrl,
+      lazyLoading: false,
+    }),
+  ]);
+  console.timeEnd("All Singletons initiating");
+
   TurbosSingleton.removeInstance();
-
-  await CetusSingleton.getInstance({
-    sdkOptions: clmmMainnet,
-    cacheOptions: { storage: redis, updateIntervalInMs: 0, updateIntervally: false },
-    suiProviderUrl,
-    lazyLoading: false,
-  });
   CetusSingleton.removeInstance();
-
-  await AftermathSingleton.getInstance({
-    cacheOptions: { storage: redis, updateIntervalInMs: 0, updateIntervally: false },
-    lazyLoading: false,
-  });
   AftermathSingleton.removeInstance();
-
-  await FlowxSingleton.getInstance({
-    cacheOptions: { storage: redis, updateIntervalInMs: 0, updateIntervally: false },
-    suiProviderUrl,
-    lazyLoading: false,
-  });
   FlowxSingleton.removeInstance();
 
   await redisClient.disconnect();
