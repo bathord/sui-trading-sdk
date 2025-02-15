@@ -2,6 +2,7 @@ import { SuiClient, SuiEvent } from "@mysten/sui.js/client";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
 import BigNumber from "bignumber.js";
 import { Contract, Network, TurbosSdk } from "turbos-clmm-sdk";
+import { request } from "undici";
 import { EventEmitter } from "../../emitters/EventEmitter";
 import { CoinManagerSingleton } from "../../managers/coin/CoinManager";
 import { swapDoctored } from "../../managers/dca/adapterUtils/turbosUtils";
@@ -31,6 +32,7 @@ import {
   getCoinsMap,
   getPathsMap,
   getPoolByCoins,
+  getResponseShapeDebugInfo,
   isCoinsApiResponseValid,
   isPoolsApiResponseValid,
   isTurbosCreatePoolEventParsedJson,
@@ -76,8 +78,8 @@ export class TurbosSingleton extends EventEmitter implements IPoolProviderWithou
     super();
     const provider = new SuiClient({ url: options.suiProviderUrl });
     this.turbosSdk = new TurbosSdk(Network.mainnet, provider);
-    const { updateIntervally = true, ...restCacheOptions } = options.cacheOptions;
-    this.cacheOptions = { updateIntervally, ...restCacheOptions };
+    const { updateIntervally = true, initCacheFromStorage = true, ...restCacheOptions } = options.cacheOptions;
+    this.cacheOptions = { updateIntervally, initCacheFromStorage, ...restCacheOptions };
     this.proxy = options.proxy;
     this.storage = options.cacheOptions.storage ?? InMemoryStorageSingleton.getInstance();
   }
@@ -97,7 +99,9 @@ export class TurbosSingleton extends EventEmitter implements IPoolProviderWithou
       const { suiProviderUrl, cacheOptions, lazyLoading = true, proxy } = options;
 
       const instance = new TurbosSingleton({ suiProviderUrl, cacheOptions, proxy });
+      console.time("TurbosSingleton init");
       lazyLoading ? instance.init() : await instance.init();
+      console.timeEnd("TurbosSingleton init");
       TurbosSingleton._instance = instance;
     }
 
@@ -113,7 +117,7 @@ export class TurbosSingleton extends EventEmitter implements IPoolProviderWithou
   private async init() {
     console.debug(`[${this.providerName}] Singleton initiating.`);
 
-    await this.fillCacheFromStorage();
+    this.cacheOptions.initCacheFromStorage && (await this.fillCacheFromStorage());
     await this.updateCaches();
     this.cacheOptions.updateIntervally && this.updateCachesIntervally();
 
@@ -170,9 +174,8 @@ export class TurbosSingleton extends EventEmitter implements IPoolProviderWithou
 
     if (isCacheEmpty || force) {
       try {
-        await this.updatePoolsCache();
+        await Promise.all([this.updatePoolsCache(), this.updateCoinsCache()]);
         this.updatePathsCache();
-        await this.updateCoinsCache();
         this.emit("cachesUpdate", this.getCoins());
 
         await storeCaches({
@@ -266,8 +269,15 @@ export class TurbosSingleton extends EventEmitter implements IPoolProviderWithou
       ? `${this.proxy}/${TurbosSingleton.TURBOS_API_URL}/pools?pageSize=${fetchPoolsCount}`
       : `${TurbosSingleton.TURBOS_API_URL}/pools?pageSize=${fetchPoolsCount}`;
 
-    const response: Response = await fetch(url);
-    const responseJson: { code: number; message: string; data: PoolData[] } = await response.json();
+    const { body } = await request(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    const responseJson = await body.json();
+
     const isValidPoolsResponse = isPoolsApiResponseValid(responseJson);
 
     if (!isValidPoolsResponse) {
@@ -285,12 +295,19 @@ export class TurbosSingleton extends EventEmitter implements IPoolProviderWithou
    * @return {Promise<CoinData[]>} A Promise that resolves to an array of CoinData.
    */
   private async fetchCoinsFromApi(): Promise<CoinData[]> {
-    const response: Response = await fetch(`${TurbosSingleton.TURBOS_API_URL}/coins`);
-    const responseJson: { code: number; message: string; data: CoinData[] } = await response.json();
+    const { body } = await request(`${TurbosSingleton.TURBOS_API_URL}/coins`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    const responseJson = await body.json();
+
     const isValidResponse = isCoinsApiResponseValid(responseJson);
 
     if (!isValidResponse) {
-      console.debug("[Turbos] Coins response shape: ", JSON.stringify(responseJson.data[0], null, 2));
+      console.debug("[Turbos] Coins response shape: ", getResponseShapeDebugInfo(responseJson));
       throw new Error("[Turbos] Coins response from API is not valid.");
     }
 

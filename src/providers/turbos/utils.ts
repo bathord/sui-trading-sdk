@@ -4,20 +4,16 @@ import { CommonCoinData } from "../../managers/types";
 import { LONG_SUI_COIN_TYPE, SHORT_SUI_COIN_TYPE } from "../common";
 import { CoinsCache, CommonPoolData, PathsCache } from "../types";
 import { TurbosSingleton } from "./turbos";
-import {
-  CoinData,
-  CoinsAPIResponse,
-  PoolData,
-  PoolsAPIResponse,
-  ShortPoolData,
-  TurbosCreatePoolEventParsedJson,
-} from "./types";
+import { CoinData, PoolData, ShortPoolData, TurbosCreatePoolEventParsedJson } from "./types";
 
 /* eslint-disable require-jsdoc */
-export function isPoolsApiResponseValid(
-  response: PoolsAPIResponse,
-): response is { code: 0; message: "OK"; data: PoolData[] } {
+export function isPoolsApiResponseValid(response: unknown): response is { code: 0; message: "OK"; data: PoolData[] } {
   return (
+    typeof response === "object" &&
+    response !== null &&
+    "code" in response &&
+    "message" in response &&
+    "data" in response &&
     response.code === 0 &&
     response.message === "OK" &&
     response.data !== undefined &&
@@ -26,10 +22,13 @@ export function isPoolsApiResponseValid(
   );
 }
 
-export function isCoinsApiResponseValid(
-  response: CoinsAPIResponse,
-): response is { code: 0; message: "OK"; data: CoinData[] } {
+export function isCoinsApiResponseValid(response: unknown): response is { code: 0; message: "OK"; data: CoinData[] } {
   return (
+    typeof response === "object" &&
+    response !== null &&
+    "code" in response &&
+    "message" in response &&
+    "data" in response &&
     response.code === 0 &&
     response.message === "OK" &&
     response.data !== undefined &&
@@ -223,4 +222,13 @@ export async function getCoinsDataForPool({
     amountBIsRaw,
     feePercentage,
   };
+}
+
+export function getResponseShapeDebugInfo(responseJson: unknown): string {
+  return typeof responseJson === "object" &&
+    responseJson !== null &&
+    "data" in responseJson &&
+    Array.isArray(responseJson.data)
+    ? JSON.stringify(responseJson.data[0], null, 2)
+    : "Invalid response format";
 }
