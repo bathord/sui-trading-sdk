@@ -70,7 +70,9 @@ export class FlowxSingleton extends EventEmitter implements IPoolProviderWithSma
       const { cacheOptions, suiProviderUrl, lazyLoading = true } = options;
 
       const instance = new FlowxSingleton({ cacheOptions, suiProviderUrl });
+      console.time("FlowxSingleton init");
       lazyLoading ? instance.init() : await instance.init();
+      console.timeEnd("FlowxSingleton init");
       FlowxSingleton._instance = instance;
     }
 
