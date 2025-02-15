@@ -17,6 +17,8 @@ export type CacheOptions = {
   storage?: Storage;
   updateIntervalInMs: number;
   updateIntervally?: boolean;
+  forceInitialUpdate?: boolean;
+  initCacheFromStorage?: boolean;
 };
 
 export type GetRouteDataInput<T extends Provider> = Parameters<T["getRouteData"]>[0];
