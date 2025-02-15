@@ -114,11 +114,7 @@ export function isPoolCoinValid(poolCoin: PoolCoin): boolean {
 }
 
 export function isPoolValid(pool: Pool): boolean {
-  return (
-    isPoolObjectValid(pool.pool) &&
-    (pool.network === undefined || isSuiNetworkValid(pool.network)) &&
-    (pool.stats === undefined || isPoolStatsValid(pool.stats))
-  );
+  return isPoolObjectValid(pool.pool) && (pool.stats === undefined || isPoolStatsValid(pool.stats));
 }
 
 export function isSuiNetworkValid(suiNetwork: SuiNetwork): boolean {
