@@ -99,3 +99,25 @@ export async function readDataFromJsonFile(filename: string): Promise<object | o
     return null;
   }
 }
+
+/**
+ * Returns the current date and time in "dd.mm.yyyy hh:mm:ss.mmm" format.
+ * @return {string} Formatted date-time string.
+ */
+export function getCurrentDateTime(): string {
+  const now = new Date();
+
+  // Get date components
+  const day = now.getDate().toString().padStart(2, "0");
+  const month = (now.getMonth() + 1).toString().padStart(2, "0"); // Months are 0-based
+  const year = now.getFullYear();
+
+  // Get time components
+  const hours = now.getHours().toString().padStart(2, "0");
+  const minutes = now.getMinutes().toString().padStart(2, "0");
+  const seconds = now.getSeconds().toString().padStart(2, "0");
+  const milliseconds = now.getMilliseconds().toString().padStart(3, "0");
+
+  // Combine into desired format
+  return `[${hours}:${minutes}:${seconds}.${milliseconds} ${day}.${month}.${year}]`;
+}
