@@ -17,7 +17,7 @@ import { getFiltredProviders, getRouterMaps, tokenFromIsTokenTo } from "./utils"
  * @description Manages routes for token swapping.
  */
 export class RouteManager implements IRouteManager {
-  private static _instance: RouteManager;
+  private static _instance: RouteManager | undefined;
   private poolProviders: Providers;
   private coinManager: CoinManagerSingleton;
 
@@ -254,16 +254,12 @@ export class RouteManager implements IRouteManager {
       signerAddress,
     });
 
-    const transaction = await maxOutputProvider.getSwapTransaction({
+    const transaction = await this.getBestRouteTransactionByRouteData({
       route,
-      publicKey: signerAddress,
+      maxOutputProvider,
+      signerAddress,
       slippagePercentage,
     });
-
-    // This is the limitation because some of the providers
-    // doesn't set/calculate gas budger for their transactions properly.
-    // We can do the simulation on our side, but it will slowdown the swap
-    transaction.setGasBudget(SWAP_GAS_BUDGET);
 
     // TODO: Remove that into the FeeManager
     /*
@@ -301,6 +297,40 @@ export class RouteManager implements IRouteManager {
     */
 
     return { tx: transaction, outputAmount: maxOutputAmount, providerName: maxOutputProvider.providerName };
+  }
+
+  /**
+   * @public
+   * @method getBestRouteTransactionByRouteData
+   * @description Gets the transaction for a specific route and provider.
+   * @param {Object} options - The options for getting the route transaction.
+   * @param {TryCatchWrapperResult} options.route - The route data to use for the swap.
+   * @param {Provider} options.maxOutputProvider - The provider to execute the swap with.
+   * @return {Promise<Transaction>} A promise that resolves to the transaction for the swap.
+   */
+  public async getBestRouteTransactionByRouteData({
+    route,
+    maxOutputProvider,
+    signerAddress,
+    slippagePercentage,
+  }: {
+    route: TryCatchWrapperResult;
+    maxOutputProvider: Provider;
+    signerAddress: string;
+    slippagePercentage: number;
+  }): Promise<Transaction | TransactionBlock> {
+    const transaction = await maxOutputProvider.getSwapTransaction({
+      route,
+      publicKey: signerAddress,
+      slippagePercentage,
+    });
+
+    // This is the limitation because some of the providers
+    // doesn't set/calculate gas budget for their transactions properly.
+    // We can do the simulation on our side, but it will slowdown the swap
+    transaction.setGasBudget(SWAP_GAS_BUDGET);
+
+    return transaction;
   }
 
   /**
@@ -412,5 +442,15 @@ export class RouteManager implements IRouteManager {
     // TODO: Check that we do not need to set gas budget limit for tx
 
     return doctoredForDCATransactionBlock;
+  }
+
+  /**
+   * Removes the current instance of RouteManager.
+   *
+   * Disclaimer: While this method in this class is marked as public, it is strongly discouraged
+   * to use it directly unless you are certain about the behavior.
+   */
+  public static removeInstance() {
+    RouteManager._instance = undefined;
   }
 }
