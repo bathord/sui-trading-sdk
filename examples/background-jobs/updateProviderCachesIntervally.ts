@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 /* eslint-disable require-jsdoc */
 
 import { createClient } from "redis";
@@ -8,6 +9,9 @@ import { FlowxSingleton } from "../../src/providers/flowx/flowx";
 import { TurbosSingleton } from "../../src/providers/turbos/turbos";
 import { RedisStorageSingleton } from "../../src/storages/RedisStorage";
 import { cacheOptions, suiProviderUrl } from "../common";
+import { getCurrentDateTime } from "../utils";
+
+require("log-timestamp")(getCurrentDateTime);
 
 const UPDATE_INTERVAL_IN_MS = 1000 * 7; // 7 seconds
 
