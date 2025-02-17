@@ -5,6 +5,7 @@ import { Transaction } from "@mysten/sui/transactions";
 import { Aftermath, Pool, RouterCompleteTradeRoute } from "aftermath-ts-sdk";
 import BigNumber from "bignumber.js";
 import { EventEmitter } from "../../emitters/EventEmitter";
+import { TimeoutError } from "../../errors/TimeoutError";
 import { CoinManagerSingleton } from "../../managers/coin/CoinManager";
 import { CoinAssetData, CommonCoinData, UpdatedCoinsCache } from "../../managers/types";
 import { InMemoryStorageSingleton } from "../../storages/InMemoryStorage";
@@ -14,6 +15,7 @@ import { storeCaches } from "../../storages/utils/storeCaches";
 import { exitHandlerWrapper } from "../common";
 import { CacheOptions, CoinsCache, CommonPoolData, IPoolProviderWithSmartRouting, PathsCache } from "../types";
 import { convertSlippage } from "../utils/convertSlippage";
+import { executeWithTimeout } from "../utils/executeWithTimeout";
 import { getCoinInfoFromCache } from "../utils/getCoinInfoFromCache";
 import { removeDecimalPart } from "../utils/removeDecimalPart";
 import { getCreatePoolCapIdAndLpCoinType, getPoolObjectIdFromTransactionResult } from "./create-pool-utils";
@@ -151,11 +153,25 @@ export class AftermathSingleton extends EventEmitter implements IPoolProviderWit
    */
   private async updateCaches({ force }: { force: boolean } = { force: false }): Promise<void> {
     const isCacheEmpty = this.isStorageCacheEmpty();
+    const maxTimeMs = this.cacheOptions.maxCachesUpdateTimeInMs;
 
     if (isCacheEmpty || force) {
       try {
-        await this.updatePoolsCache();
-        await this.updatePathsAndCoinsCache();
+        if (maxTimeMs) {
+          await executeWithTimeout(
+            async () => {
+              await this.updatePoolsCache();
+              await this.updatePathsAndCoinsCache();
+            },
+            maxTimeMs,
+            this.providerName,
+            "Pools, paths and coins cache update",
+          );
+        } else {
+          await this.updatePoolsCache();
+          await this.updatePathsAndCoinsCache();
+        }
+
         this.emit("cachesUpdate", this.getCoins());
 
         await storeCaches({
@@ -167,7 +183,11 @@ export class AftermathSingleton extends EventEmitter implements IPoolProviderWit
 
         console.debug("[Aftermath] Caches are updated and stored.");
       } catch (error) {
-        console.error("[Aftermath] Caches update failed:", error);
+        if (error instanceof TimeoutError) {
+          console.error(`[Aftermath] Caches update timed out after ${maxTimeMs}ms`);
+        } else {
+          console.error("[Aftermath] Caches update failed:", error);
+        }
       }
     }
   }

@@ -188,8 +188,16 @@ export class CetusSingleton extends EventEmitter implements IPoolProviderWithSma
     const isCacheEmpty = this.isStorageCacheEmpty();
 
     if (isCacheEmpty || force) {
+      const maxTimeMs = this.cacheOptions.maxCachesUpdateTimeInMs;
+      const controller = new AbortController();
+      let timeoutId: NodeJS.Timeout | undefined;
+
+      if (maxTimeMs) {
+        timeoutId = setTimeout(() => controller.abort(), maxTimeMs);
+      }
+
       try {
-        await this.updatePoolsCache();
+        await this.updatePoolsCache(controller.signal);
         this.updatePathsAndCoinsCache();
         this.useOnChainFallback && this.updateGraph();
         this.emit("cachesUpdate", this.getCoins());
@@ -204,7 +212,15 @@ export class CetusSingleton extends EventEmitter implements IPoolProviderWithSma
 
         console.debug("[Cetus] Caches are updated and stored.");
       } catch (error) {
-        console.error("[Cetus] Caches update failed:", error);
+        if (error instanceof Error && error.name === "AbortError") {
+          console.error(`[Cetus] Cache update timed out after ${maxTimeMs}ms`);
+        } else {
+          console.error("[Cetus] Caches update failed:", error);
+        }
+      } finally {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
       }
     }
   }
@@ -236,10 +252,11 @@ export class CetusSingleton extends EventEmitter implements IPoolProviderWithSma
    * @private
    * @method updatePoolsCache
    * @description Updates the pools cache.
+   * @param {AbortSignal} [signal] Optional signal for request cancellation
    * @return {Promise<void>} A Promise that resolves when the pools cache is updated.
    */
-  private async updatePoolsCache(): Promise<void> {
-    this.poolsCache = await this.retrieveAllPoolsFromApi();
+  private async updatePoolsCache(signal?: AbortSignal) {
+    this.poolsCache = await this.retrieveAllPoolsFromApi(signal);
   }
 
   /**
@@ -289,52 +306,62 @@ export class CetusSingleton extends EventEmitter implements IPoolProviderWithSma
    * @private
    * @method retrieveAllPoolsFromApi
    * @description Retrieves all pools from the API with pagination support.
+   * @param {AbortSignal} [signal] Optional signal for request cancellation
    * @return {Promise<any>} A Promise that resolves to all retrieved pools.
    */
-  private async retrieveAllPoolsFromApi() {
-    // Maximum number of pools that Cetus API returns in a single request
+  private async retrieveAllPoolsFromApi(signal?: AbortSignal) {
     const POOLS_PER_PAGE = 100;
 
-    // Get first page and total count
-    const endpoint = getCentralizedPoolsInfoEndpoint({ offset: 0 });
-    const url = this.proxy ? `${this.proxy}/${endpoint}` : endpoint;
+    // Get first page to determine total count
+    const firstPageUrl = this.proxy
+      ? `${this.proxy}/${getCentralizedPoolsInfoEndpoint({ offset: 0 })}`
+      : getCentralizedPoolsInfoEndpoint({ offset: 0 });
 
-    const { body } = await request(url, {
+    const firstPageResponse = await this.fetchPoolsPage(firstPageUrl, signal);
+    const totalPages = Math.ceil(firstPageResponse.data.total / POOLS_PER_PAGE);
+
+    // Fetch remaining pages in parallel
+    const remainingPages = await Promise.all(
+      Array.from({ length: totalPages - 1 }, async (_, i) => {
+        const offset = (i + 1) * POOLS_PER_PAGE;
+        const pageUrl = this.proxy
+          ? `${this.proxy}/${getCentralizedPoolsInfoEndpoint({ offset })}`
+          : getCentralizedPoolsInfoEndpoint({ offset });
+
+        return this.fetchPoolsPage(pageUrl, signal);
+      }),
+    );
+
+    // Combine all pools
+    return remainingPages.reduce<LPList[]>(
+      (acc, page) => [...acc, ...page.data.lp_list],
+      firstPageResponse.data.lp_list,
+    );
+  }
+
+  /**
+   * Fetches a single page of pools data from the API
+   * @param {string} url - The URL to fetch from
+   * @param {AbortSignal} [signal] - Optional AbortSignal for request cancellation
+   * @return {Promise<any>} A Promise that resolves to the page data.
+   * @private
+   */
+  private async fetchPoolsPage(url: string, signal?: AbortSignal) {
+    const response = await request(url, {
       method: "GET",
-      headers: { Accept: "application/json" },
+      headers: {
+        Accept: "application/json",
+        Origin: "https://app.cetus.zone",
+      },
+      ...(signal && { signal }),
     });
-    const firstPageResponse = await body.json();
+    const data = await response.body.json();
 
-    if (!isApiResponseValid(firstPageResponse)) {
-      console.error("[Cetus] Pools response:", firstPageResponse);
+    if (!isApiResponseValid(data)) {
       throw new Error("Pools response from API is not valid");
     }
 
-    const totalPools = firstPageResponse.data.total;
-    const totalPages = Math.ceil(totalPools / POOLS_PER_PAGE);
-    const firstPagePools = firstPageResponse.data.lp_list;
-
-    // Skip first page as we already have it
-    const remainingPagePromises = Array.from({ length: totalPages - 1 }, (_, i) => {
-      const offset = (i + 1) * POOLS_PER_PAGE;
-      const pageEndpoint = getCentralizedPoolsInfoEndpoint({ offset });
-      const pageUrl = this.proxy ? `${this.proxy}/${pageEndpoint}` : pageEndpoint;
-
-      return request(pageUrl, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-      }).then((res) => res.body.json());
-    });
-
-    const responses = await Promise.all(remainingPagePromises);
-    const allPools = responses.reduce<LPList[]>((acc, response) => {
-      if (!isApiResponseValid(response)) {
-        throw new Error("Pools response from API is not valid");
-      }
-      return [...acc, ...response.data.lp_list];
-    }, firstPagePools);
-
-    return allPools;
+    return data;
   }
 
   /**
