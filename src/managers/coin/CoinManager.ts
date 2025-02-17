@@ -31,7 +31,7 @@ import {
  * @description Singleton class for managing coins.
  */
 export class CoinManagerSingleton implements ICoinManager {
-  private static _instance: CoinManagerSingleton;
+  private static _instance: CoinManagerSingleton | undefined;
   private allCoinsCache: Map<string, CommonCoinData> = new Map();
   private coinsByProviderNameCache: Map<string, Map<string, CommonCoinData>> = new Map();
   private provider: SuiClient;
@@ -330,5 +330,15 @@ export class CoinManagerSingleton implements ICoinManager {
         `[validateCreateCoinParams] Coin symbol ${symbol} and coin description ${description} are equal`,
       );
     }
+  }
+
+  /**
+   * Removes the current instance of CoinManagerSingleton.
+   *
+   * Disclaimer: While this method in this class is marked as public, it is strongly discouraged
+   * to use it directly unless you are certain about the behavior.
+   */
+  public static removeInstance() {
+    CoinManagerSingleton._instance = undefined;
   }
 }
