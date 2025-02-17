@@ -173,8 +173,17 @@ export class TurbosSingleton extends EventEmitter implements IPoolProviderWithou
     const isCacheEmpty = this.isStorageCacheEmpty();
 
     if (isCacheEmpty || force) {
+      const maxTimeMs = this.cacheOptions.maxCachesUpdateTimeInMs;
+      const controller = new AbortController();
+      let timeoutId: NodeJS.Timeout | undefined;
+
+      if (maxTimeMs) {
+        timeoutId = setTimeout(() => controller.abort(), maxTimeMs);
+      }
+
       try {
-        await Promise.all([this.updatePoolsCache(), this.updateCoinsCache()]);
+        await Promise.all([this.updatePoolsCache(controller.signal), this.updateCoinsCache(controller.signal)]);
+
         this.updatePathsCache();
         this.emit("cachesUpdate", this.getCoins());
 
@@ -188,7 +197,15 @@ export class TurbosSingleton extends EventEmitter implements IPoolProviderWithou
 
         console.debug("[Turbos] Caches are updated and stored.");
       } catch (error) {
-        console.error("[Turbos] Caches update failed:", error);
+        if (error instanceof Error && error.name === "AbortError") {
+          console.error(`[Turbos] Caches update timed out after ${maxTimeMs}ms`);
+        } else {
+          console.error("[Turbos] Caches update failed:", error);
+        }
+      } finally {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
       }
     }
   }
@@ -220,12 +237,11 @@ export class TurbosSingleton extends EventEmitter implements IPoolProviderWithou
    * @private
    * @method updatePoolsCache
    * @description Updates the pools cache.
+   * @param {AbortSignal} [signal] - Optional AbortSignal for request cancellation
    * @return {Promise<void>} A Promise that resolves when the pools cache is updated.
    */
-  public async updatePoolsCache(): Promise<void> {
-    const pools: PoolData[] = await this.fetchPoolsFromApi();
-
-    // TODO: Remove that method to separate one
+  private async updatePoolsCache(signal?: AbortSignal): Promise<void> {
+    const pools: PoolData[] = await this.fetchPoolsFromApi(signal);
     this.poolsCache = pools.map((pool: PoolData) => ({
       poolId: pool.pool_id,
       coinTypeA: pool.coin_type_a,
@@ -245,23 +261,22 @@ export class TurbosSingleton extends EventEmitter implements IPoolProviderWithou
 
   /**
    * @private
-   * @method updateCoinsCache
    * @description Updates the coins cache.
+   * @param {AbortSignal} [signal] - Optional AbortSignal for request cancellation
    * @return {Promise<void>} A Promise that resolves when the coins cache is updated.
    */
-  private async updateCoinsCache(): Promise<void> {
-    const coins: CoinData[] = await this.fetchCoinsFromApi();
+  private async updateCoinsCache(signal?: AbortSignal): Promise<void> {
+    const coins: CoinData[] = await this.fetchCoinsFromApi(signal);
     this.coinsCache = getCoinsMap(coins);
   }
 
   /**
    * Gets pools data from the Turbos API.
-   *
-   * @public
-   * @async
+   * @private
+   * @param {AbortSignal} [signal] - Optional AbortSignal for request cancellation
    * @return {Promise<PoolData[]>} A Promise that resolves to an array of PoolData.
    */
-  private async fetchPoolsFromApi(): Promise<PoolData[]> {
+  private async fetchPoolsFromApi(signal?: AbortSignal): Promise<PoolData[]> {
     // By default Turbos API returns not all the pools, so we need to explicitly set count of pools we want to fetch.
     const fetchPoolsCount = 1_000_000;
 
@@ -274,13 +289,11 @@ export class TurbosSingleton extends EventEmitter implements IPoolProviderWithou
       headers: {
         Accept: "application/json",
       },
+      ...(signal && { signal }),
     });
 
     const responseJson = await body.json();
-
-    const isValidPoolsResponse = isPoolsApiResponseValid(responseJson);
-
-    if (!isValidPoolsResponse) {
+    if (!isPoolsApiResponseValid(responseJson)) {
       throw new Error("[Turbos] Pools response from API is not valid.");
     }
 
@@ -289,24 +302,21 @@ export class TurbosSingleton extends EventEmitter implements IPoolProviderWithou
 
   /**
    * Fetches coin data from the Turbos API.
-   *
-   * @public
-   * @async
+   * @param {AbortSignal} [signal] - Optional AbortSignal for request cancellation
    * @return {Promise<CoinData[]>} A Promise that resolves to an array of CoinData.
+   * @private
    */
-  private async fetchCoinsFromApi(): Promise<CoinData[]> {
+  private async fetchCoinsFromApi(signal?: AbortSignal): Promise<CoinData[]> {
     const { body } = await request(`${TurbosSingleton.TURBOS_API_URL}/coins`, {
       method: "GET",
       headers: {
         Accept: "application/json",
       },
+      ...(signal && { signal }),
     });
 
     const responseJson = await body.json();
-
-    const isValidResponse = isCoinsApiResponseValid(responseJson);
-
-    if (!isValidResponse) {
+    if (!isCoinsApiResponseValid(responseJson)) {
       console.debug("[Turbos] Coins response shape: ", getResponseShapeDebugInfo(responseJson));
       throw new Error("[Turbos] Coins response from API is not valid.");
     }

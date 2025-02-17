@@ -13,7 +13,8 @@ import { getCurrentDateTime } from "../utils";
 
 require("log-timestamp")(getCurrentDateTime);
 
-const UPDATE_INTERVAL_IN_MS = 1000 * 7; // 7 seconds
+const UPDATE_INTERVAL_IN_MS = 1000 * 8; // 8 seconds
+const MAX_CACHES_UPDATE_TIME_IN_MS = 1000 * 7; // 7 seconds
 
 let isUpdateInProgress = false;
 let redisClient: ReturnType<typeof createClient>;
@@ -33,21 +34,44 @@ async function updateProviderCaches() {
     await Promise.all([
       TurbosSingleton.getInstance({
         suiProviderUrl,
-        cacheOptions: { storage: redis, updateIntervalInMs: 0, updateIntervally: false, initCacheFromStorage: false },
+        cacheOptions: {
+          storage: redis,
+          updateIntervalInMs: 0,
+          updateIntervally: false,
+          initCacheFromStorage: false,
+          maxCachesUpdateTimeInMs: MAX_CACHES_UPDATE_TIME_IN_MS,
+        },
         lazyLoading: false,
       }),
       CetusSingleton.getInstance({
         sdkOptions: clmmMainnet,
-        cacheOptions: { storage: redis, updateIntervalInMs: 0, updateIntervally: false, initCacheFromStorage: false },
+        cacheOptions: {
+          storage: redis,
+          updateIntervalInMs: 0,
+          updateIntervally: false,
+          initCacheFromStorage: false,
+          maxCachesUpdateTimeInMs: MAX_CACHES_UPDATE_TIME_IN_MS,
+        },
         suiProviderUrl,
         lazyLoading: false,
       }),
       AftermathSingleton.getInstance({
-        cacheOptions: { storage: redis, updateIntervally: false, forceInitialUpdate: true, ...cacheOptions },
+        cacheOptions: {
+          storage: redis,
+          updateIntervally: false,
+          forceInitialUpdate: true,
+          ...cacheOptions,
+          maxCachesUpdateTimeInMs: MAX_CACHES_UPDATE_TIME_IN_MS,
+        },
         lazyLoading: false,
       }),
       FlowxSingleton.getInstance({
-        cacheOptions: { storage: redis, updateIntervalInMs: 0, updateIntervally: false },
+        cacheOptions: {
+          storage: redis,
+          updateIntervalInMs: 0,
+          updateIntervally: false,
+          maxCachesUpdateTimeInMs: MAX_CACHES_UPDATE_TIME_IN_MS,
+        },
         suiProviderUrl,
         lazyLoading: false,
       }),
