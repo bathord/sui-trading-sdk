@@ -3,6 +3,7 @@ import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { SuiClient } from "@mysten/sui/client";
 import BigNumber from "bignumber.js";
 import { EventEmitter } from "../../emitters/EventEmitter";
+import { TimeoutError } from "../../errors/TimeoutError";
 import { swapExactInputDoctored } from "../../managers/dca/adapterUtils/flowxUtils";
 import { buildDcaTxBlock } from "../../managers/dca/adapters/flowxAdapter";
 import { CommonCoinData, UpdatedCoinsCache } from "../../managers/types";
@@ -14,6 +15,7 @@ import { storeCaches } from "../../storages/utils/storeCaches";
 import { exitHandlerWrapper } from "../common";
 import { CacheOptions, CoinsCache, IPoolProviderWithSmartRouting } from "../types";
 import { convertSlippage } from "../utils/convertSlippage";
+import { executeWithTimeout } from "../utils/executeWithTimeout";
 import { getCoinInfoFromCache } from "../utils/getCoinInfoFromCache";
 import { ExtendedSwapCalculatedOutputDataType, FlowxOptions, FlowXRouteData, ShortCoinMetadata } from "./types";
 import { getCoinsMap, isCoinListValid } from "./utils";
@@ -141,10 +143,16 @@ export class FlowxSingleton extends EventEmitter implements IPoolProviderWithSma
    */
   private async updateCaches({ force }: { force: boolean } = { force: false }): Promise<void> {
     const isCacheEmpty = this.isStorageCacheEmpty();
+    const maxTimeMs = this.cacheOptions.maxCachesUpdateTimeInMs;
 
     if (isCacheEmpty || force) {
       try {
-        await this.updateCoinsCache();
+        if (maxTimeMs) {
+          await executeWithTimeout(() => this.updateCoinsCache(), maxTimeMs, this.providerName, "Coins cache update");
+        } else {
+          await this.updateCoinsCache();
+        }
+
         this.emit("cachesUpdate", this.getCoins());
 
         await storeCaches({
@@ -156,7 +164,11 @@ export class FlowxSingleton extends EventEmitter implements IPoolProviderWithSma
 
         console.debug("[FlowX] Caches are updated and stored.");
       } catch (error) {
-        console.error("[Flowx] Caches update failed:", error);
+        if (error instanceof TimeoutError) {
+          console.error(`[Flowx] Caches update timed out after ${maxTimeMs}ms`);
+        } else {
+          console.error("[Flowx] Caches update failed:", error);
+        }
       }
     }
   }
