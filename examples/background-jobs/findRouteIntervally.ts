@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 /* eslint-disable require-jsdoc */
 
 import { Transaction } from "@mysten/sui/transactions";
@@ -11,8 +12,11 @@ import { SHORT_SUI_COIN_TYPE } from "../../src/providers/common";
 import { RedisStorageSingleton } from "../../src/storages/RedisStorage";
 import { USDC_COIN_TYPE } from "../coin-types";
 import { cacheOptions, newKeypair, newProvider, suiProviderUrl, user } from "../common";
+import { getCurrentDateTime } from "../utils";
 
-const FIND_ROUTE_INTERVAL_MS = 1000 * 10; // 10 seconds
+require("log-timestamp")(getCurrentDateTime);
+
+const FIND_ROUTE_INTERVAL_MS = 1000 * 3; // 3 seconds
 
 const ROUTE_PARAMS = {
   tokenFrom: SHORT_SUI_COIN_TYPE,
@@ -22,7 +26,7 @@ const ROUTE_PARAMS = {
   signerAddress: user,
 };
 
-const SHOULD_EXECUTE_SWAP = false;
+const SHOULD_EXECUTE_SWAP = true;
 
 let isRouteSearchInProgress = false;
 let redisClient: ReturnType<typeof createClient>;
