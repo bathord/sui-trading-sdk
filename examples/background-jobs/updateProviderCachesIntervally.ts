@@ -13,8 +13,8 @@ import { getCurrentDateTime } from "../utils";
 
 require("log-timestamp")(getCurrentDateTime);
 
-const UPDATE_INTERVAL_IN_MS = 1000 * 8; // 8 seconds
-const MAX_CACHES_UPDATE_TIME_IN_MS = 1000 * 7; // 7 seconds
+const UPDATE_INTERVAL_IN_MS = 1000 * 10; // 10 seconds
+const MAX_CACHES_UPDATE_TIME_IN_MS = 1000 * 9; // 9 seconds
 
 let isUpdateInProgress = false;
 let redisClient: ReturnType<typeof createClient>;
@@ -70,6 +70,7 @@ async function updateProviderCaches() {
           storage: redis,
           updateIntervalInMs: 0,
           updateIntervally: false,
+          initCacheFromStorage: false,
           maxCachesUpdateTimeInMs: MAX_CACHES_UPDATE_TIME_IN_MS,
         },
         suiProviderUrl,
