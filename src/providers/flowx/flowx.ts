@@ -51,8 +51,8 @@ export class FlowxSingleton extends EventEmitter implements IPoolProviderWithSma
   private constructor(options: Omit<FlowxOptions, "lazyLoading">) {
     super();
     this.provider = new SuiClient({ url: options.suiProviderUrl });
-    const { updateIntervally = true, ...restCacheOptions } = options.cacheOptions;
-    this.cacheOptions = { updateIntervally, ...restCacheOptions };
+    const { updateIntervally = true, initCacheFromStorage = true, ...restCacheOptions } = options.cacheOptions;
+    this.cacheOptions = { updateIntervally, initCacheFromStorage, ...restCacheOptions };
     this.storage = options.cacheOptions.storage ?? InMemoryStorageSingleton.getInstance();
   }
 
@@ -90,7 +90,7 @@ export class FlowxSingleton extends EventEmitter implements IPoolProviderWithSma
   private async init() {
     console.debug(`[${this.providerName}] Singleton initiating.`);
 
-    await this.fillCacheFromStorage();
+    this.cacheOptions.initCacheFromStorage && (await this.fillCacheFromStorage());
     await this.updateCaches();
     this.cacheOptions.updateIntervally && this.updateCachesIntervally();
 
