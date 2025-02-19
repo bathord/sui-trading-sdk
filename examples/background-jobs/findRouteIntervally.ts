@@ -1,18 +1,21 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 /* eslint-disable require-jsdoc */
 
 import { Transaction } from "@mysten/sui/transactions";
-import { createClient } from "redis";
 import { AftermathSingleton, CetusSingleton, FlowxSingleton, TurbosSingleton } from "../../src";
 import { NoRoutesError } from "../../src/errors/NoRoutesError";
 import { CoinManagerSingleton } from "../../src/managers/coin/CoinManager";
 import { RouteManager } from "../../src/managers/RouteManager";
 import { clmmMainnet } from "../../src/providers/cetus/config";
 import { SHORT_SUI_COIN_TYPE } from "../../src/providers/common";
-import { RedisStorageSingleton } from "../../src/storages/RedisStorage";
 import { USDC_COIN_TYPE } from "../coin-types";
 import { cacheOptions, newKeypair, newProvider, suiProviderUrl, user } from "../common";
+import { getCurrentDateTime } from "../utils";
+import { redis, startProcess, stopProcess } from "./utils";
 
-const FIND_ROUTE_INTERVAL_MS = 1000 * 10; // 10 seconds
+require("log-timestamp")(getCurrentDateTime);
+
+const FIND_ROUTE_INTERVAL_MS = 1000 * 3; // 3 seconds
 
 const ROUTE_PARAMS = {
   tokenFrom: SHORT_SUI_COIN_TYPE,
@@ -22,11 +25,9 @@ const ROUTE_PARAMS = {
   signerAddress: user,
 };
 
-const SHOULD_EXECUTE_SWAP = false;
+const SHOULD_EXECUTE_SWAP = true;
 
 let isRouteSearchInProgress = false;
-let redisClient: ReturnType<typeof createClient>;
-let redis: RedisStorageSingleton;
 
 // yarn ts-node examples/background-jobs/findRouteIntervally.ts > find-route-intervally.log 2>&1
 async function findRoute() {
@@ -98,7 +99,7 @@ async function findRoute() {
       }
 
       // Cleanup and stop when route is found
-      await stopSearches();
+      await stopProcess();
       process.exit(0);
     } else {
       console.log("[Route Search] No route found, will try again in the next interval");
@@ -124,58 +125,8 @@ async function findRoute() {
   }
 }
 
-async function initRedis() {
-  console.time("redis init");
-  redisClient = createClient({
-    url: process.env.REDIS_URL,
-    socket: { tls: false },
-  });
-  redisClient.on("error", (error) => {
-    console.error("[Redis Client] error event occured:", error);
-  });
-  await redisClient.connect();
-  redis = RedisStorageSingleton.getInstance(redisClient);
-  console.timeEnd("redis init");
-}
-
-async function cleanupRedis() {
-  if (redisClient) {
-    await redisClient.disconnect();
-    RedisStorageSingleton.removeInstance();
-  }
-}
-
-// Start interval updates
-let searchInterval: NodeJS.Timeout;
-
-async function startSearches() {
-  await initRedis();
-  searchInterval = setInterval(findRoute, FIND_ROUTE_INTERVAL_MS);
-  await findRoute(); // Initial search
-}
-
-async function stopSearches() {
-  if (searchInterval) {
-    clearInterval(searchInterval);
-  }
-  await cleanupRedis();
-}
-
-// Handle process termination
-const handleProcessSignal = async (signal: string) => {
-  console.log(`\nReceived ${signal} signal. Stopping route searches...`);
-  await stopSearches();
-  process.exit(0);
-};
-
-process.on("SIGINT", () => handleProcessSignal("SIGINT"));
-process.on("SIGTERM", () => handleProcessSignal("SIGTERM"));
-process.on("SIGUSR1", () => handleProcessSignal("SIGUSR1"));
-process.on("SIGUSR2", () => handleProcessSignal("SIGUSR2"));
-process.on("exit", () => handleProcessSignal("exit"));
-
 // Start the searches
-startSearches().catch((error) => {
+startProcess(findRoute, FIND_ROUTE_INTERVAL_MS).catch((error) => {
   console.error("Failed to start route searches:", error);
   process.exit(1);
 });
