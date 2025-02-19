@@ -22,6 +22,7 @@ export * from "./providers/utils/getSuiProvider";
 export * from "./providers/utils/isValidTokenAmount";
 export * from "./providers/utils/transactionFromSerializedTransaction";
 export * from "./providers/utils/isSuiCoinType";
+export * from "./providers/utils/convertRawTokenAmount";
 
 // Aftermath
 export * from "./providers/aftermath/aftermath";
