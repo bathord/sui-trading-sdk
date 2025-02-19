@@ -1,7 +1,7 @@
 {
-  "name": "@avernikoz/rinbot-sui-sdk",
-  "version": "2.8.5",
-  "description": "Sui Trading Bot SDK (typescript)",
+  "name": "@bathord/sui-trading-sdk",
+  "version": "1.0.0",
+  "description": "Sui Trading SDK (typescript)",
   "files": [
     "dist"
   ],
@@ -13,13 +13,12 @@
   "main": "dist/index.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/aldrin-labs/rinbot-sui-sdk.git"
+    "url": "git+https://github.com/bathord/sui-trading-sdk.git"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org"
   },
-  "author": "avernikoz <avernikoz@gmail.com>",
-  "license": "private",
+  "author": "bathord <bathord43@gmail.com>",
   "private": false,
   "engineStrict": true,
   "scripts": {
