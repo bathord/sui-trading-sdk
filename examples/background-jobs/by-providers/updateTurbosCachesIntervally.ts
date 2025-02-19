@@ -5,7 +5,7 @@
 import { TurbosSingleton } from "../../../src/providers/turbos/turbos";
 import { suiProviderUrl } from "../../common";
 import { getCurrentDateTime } from "../../utils";
-import { redis, startUpdates } from "../utils";
+import { redis, startProcess } from "../utils";
 
 require("log-timestamp")(getCurrentDateTime);
 
@@ -48,7 +48,7 @@ async function updateTurbosCaches() {
 }
 
 // Start the updates
-startUpdates(updateTurbosCaches, UPDATE_INTERVAL_IN_MS).catch((error) => {
+startProcess(updateTurbosCaches, UPDATE_INTERVAL_IN_MS).catch((error) => {
   console.error("Failed to start updates:", error);
   process.exit(1);
 });

@@ -5,7 +5,7 @@
 import { FlowxSingleton } from "../../../src/providers/flowx/flowx";
 import { suiProviderUrl } from "../../common";
 import { getCurrentDateTime } from "../../utils";
-import { redis, startUpdates } from "../utils";
+import { redis, startProcess } from "../utils";
 
 require("log-timestamp")(getCurrentDateTime);
 
@@ -48,7 +48,7 @@ async function updateFlowxCaches() {
 }
 
 // Start the updates
-startUpdates(updateFlowxCaches, UPDATE_INTERVAL_IN_MS).catch((error) => {
+startProcess(updateFlowxCaches, UPDATE_INTERVAL_IN_MS).catch((error) => {
   console.error("Failed to start updates:", error);
   process.exit(1);
 });

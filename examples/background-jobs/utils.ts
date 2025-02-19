@@ -29,7 +29,7 @@ export async function cleanupRedis() {
   }
 }
 
-export async function stopUpdates(updateInterval: NodeJS.Timeout) {
+export async function stopProcess() {
   if (updateInterval) {
     clearInterval(updateInterval);
   }
@@ -37,7 +37,7 @@ export async function stopUpdates(updateInterval: NodeJS.Timeout) {
 }
 
 // Start interval updates
-export async function startUpdates(method: () => Promise<void>, updateIntervalInMs: number) {
+export async function startProcess(method: () => Promise<void>, updateIntervalInMs: number) {
   await initRedis();
   updateInterval = setInterval(method, updateIntervalInMs);
   await method(); // Initial update
@@ -46,7 +46,7 @@ export async function startUpdates(method: () => Promise<void>, updateIntervalIn
 // Handle process termination
 const handleProcessSignal = async (signal: string) => {
   console.log(`\nReceived ${signal} signal. Stopping updates...`);
-  await stopUpdates(updateInterval);
+  await stopProcess();
   process.exit(0);
 };
 

@@ -6,7 +6,7 @@ import { CetusSingleton } from "../../../src/providers/cetus/cetus";
 import { clmmMainnet } from "../../../src/providers/cetus/config";
 import { suiProviderUrl } from "../../common";
 import { getCurrentDateTime } from "../../utils";
-import { redis, startUpdates } from "../utils";
+import { redis, startProcess } from "../utils";
 
 require("log-timestamp")(getCurrentDateTime);
 
@@ -49,7 +49,7 @@ async function updateCetusCaches() {
   }
 }
 // Start the updates
-startUpdates(updateCetusCaches, UPDATE_INTERVAL_IN_MS).catch((error) => {
+startProcess(updateCetusCaches, UPDATE_INTERVAL_IN_MS).catch((error) => {
   console.error("Failed to start updates:", error);
   process.exit(1);
 });

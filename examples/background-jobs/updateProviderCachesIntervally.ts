@@ -13,7 +13,7 @@ import { FlowxSingleton } from "../../src/providers/flowx/flowx";
 import { TurbosSingleton } from "../../src/providers/turbos/turbos";
 import { cacheOptions, suiProviderUrl } from "../common";
 import { getCurrentDateTime } from "../utils";
-import { redis, startUpdates } from "./utils";
+import { redis, startProcess } from "./utils";
 
 require("log-timestamp")(getCurrentDateTime);
 
@@ -94,7 +94,7 @@ async function updateProviderCaches() {
 }
 
 // Start the updates
-startUpdates(updateProviderCaches, UPDATE_INTERVAL_IN_MS).catch((error) => {
+startProcess(updateProviderCaches, UPDATE_INTERVAL_IN_MS).catch((error) => {
   console.error("Failed to start updates:", error);
   process.exit(1);
 });

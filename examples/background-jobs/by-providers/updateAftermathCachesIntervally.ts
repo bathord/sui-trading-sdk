@@ -5,7 +5,7 @@
 import { AftermathSingleton } from "../../../src/providers/aftermath/aftermath";
 import { cacheOptions } from "../../common";
 import { getCurrentDateTime } from "../../utils";
-import { redis, startUpdates } from "../utils";
+import { redis, startProcess } from "../utils";
 
 require("log-timestamp")(getCurrentDateTime);
 
@@ -47,7 +47,7 @@ async function updateAftermathCaches() {
 }
 
 // Start the updates
-startUpdates(updateAftermathCaches, UPDATE_INTERVAL_IN_MS).catch((error) => {
+startProcess(updateAftermathCaches, UPDATE_INTERVAL_IN_MS).catch((error) => {
   console.error("Failed to start updates:", error);
   process.exit(1);
 });
