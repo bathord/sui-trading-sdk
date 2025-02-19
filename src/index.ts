@@ -12,6 +12,7 @@ export * from "./managers/FeeManager";
 
 // Providers (common & utils)
 export * from "./providers/common";
+export * from "./providers/types";
 export * from "./providers/utils/convertSlippage";
 export * from "./providers/utils/convertToBNFormat";
 export * from "./providers/utils/isValidTokenAddress";
