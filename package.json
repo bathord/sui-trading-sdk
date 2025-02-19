@@ -1,6 +1,6 @@
 {
   "name": "@bathord/sui-trading-sdk",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Sui Trading SDK (typescript)",
   "files": [
     "dist"
