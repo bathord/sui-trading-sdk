@@ -1,6 +1,6 @@
 {
   "name": "@bathord/sui-trading-sdk",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Sui Trading SDK (typescript)",
   "files": [
     "dist"
@@ -29,7 +29,7 @@
     "build": "yarn rimraf dist && yarn run lint && tsup",
     "build:watch": "tsc --watch",
     "prettier-format": "prettier --config .prettierrc 'src/**/*.ts' --write",
-    "deploy": "yarn lint && yarn build && yarn publish --access restricted",
+    "deploy": "yarn build && yarn publish --access public",
     "generate": "mkdir -p __generated__ && sui-client-gen --manifest generate.toml --out __generated__/ --clean && eslint __generated__/ --fix && prettier --write __generated__/**/*.ts"
   },
   "overrides": {
