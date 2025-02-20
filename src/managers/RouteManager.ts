@@ -215,6 +215,8 @@ export class RouteManager implements IRouteManager {
    * @param {number} options.slippagePercentage - The slippage percentage.
    * @param {string} options.signerAddress - The address of the signer.
    * @param {object} options.fee - The fee in SUI that would be deducted from user's account
+   * @param {Providers} options.supportedProviders - List of supported providers
+   * which would be used in the finding best route data.
    * @return {Promise<{ tx: TransactionBlock, outputAmount: bigint, providerName: string }>} A promise that resolves
    * to the object with transaction block for the swap, calculated output amount and the name of the provider, making
    * the swap.
@@ -227,6 +229,7 @@ export class RouteManager implements IRouteManager {
     slippagePercentage,
     signerAddress,
     fee,
+    supportedProviders,
   }: {
     tokenFrom: string;
     tokenTo: string;
@@ -239,6 +242,7 @@ export class RouteManager implements IRouteManager {
       tokenFromCoinObjects?: CoinStruct[];
       tokenFromDecimals?: number;
     };
+    supportedProviders?: Providers;
   }): Promise<{ tx: TransactionBlock | Transaction; outputAmount: bigint; providerName: string }> {
     // Note: this works only for sui
     const amountInCludingFees =
@@ -252,6 +256,7 @@ export class RouteManager implements IRouteManager {
       amount: amountInCludingFees,
       slippagePercentage,
       signerAddress,
+      supportedProviders,
     });
 
     const transaction = await this.getBestRouteTransactionByRouteData({
