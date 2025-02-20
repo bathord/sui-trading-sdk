@@ -23,6 +23,7 @@ export * from "./providers/utils/isValidTokenAmount";
 export * from "./providers/utils/transactionFromSerializedTransaction";
 export * from "./providers/utils/isSuiCoinType";
 export * from "./providers/utils/convertRawTokenAmount";
+export * from "./providers/utils/getAddressByDomain";
 
 // Aftermath
 export * from "./providers/aftermath/aftermath";
