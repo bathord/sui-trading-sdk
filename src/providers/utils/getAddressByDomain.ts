@@ -19,9 +19,9 @@ interface DomainRecordResponse {
  * Retrieves the address associated with a given domain from the Sui blockchain.
  * @param {string} domain - The domain name to look up.
  * @param {string} suiClientUrl - The URL of the Sui client to use.
- * @return {Promise<string>} The address associated with the domain.
+ * @return {Promise<string | null>} The address associated with the domain or null if the domain is not found.
  */
-export async function getAddressByDomain(domain: string, suiClientUrl: string): Promise<string> {
+export async function getAddressByDomain(domain: string, suiClientUrl: string): Promise<string | null> {
   const provider = new SuiClient({ url: suiClientUrl });
   const domainRecord = await provider.getDynamicFieldObject({
     parentId: PARENT_ID,
@@ -32,7 +32,7 @@ export async function getAddressByDomain(domain: string, suiClientUrl: string): 
   });
 
   if (!isDomainRecordResponse(domainRecord.data)) {
-    throw new Error("Invalid domain record format");
+    return null;
   }
 
   return domainRecord.data.content.fields.value.fields.target_address;
